@@ -100,10 +100,7 @@ export default function SwapPage() {
 
       <div className="flex-1 flex flex-col items-center justify-start pt-12 md:pt-24 px-4">
         
-        {/* Swap Form Container */}
         <div className="w-full max-w-[420px] border border-border bg-background flex flex-col">
-          
-          {/* Form Tabs */}
           <div className="flex space-x-4 lg:space-x-6 px-4 pt-3 pb-2 border-b border-border text-xs lg:text-sm transition-colors">
             <button className="font-sans tracking-wide pb-1 border-b-2 text-primary border-primary transition-colors">Swap</button>
             <button className="font-sans tracking-wide pb-1 border-b-2 text-muted border-transparent hover:text-primary transition-colors">Limit</button>
@@ -111,8 +108,6 @@ export default function SwapPage() {
           </div>
 
           <div className="p-4 flex flex-col">
-            
-            {/* You Pay */}
             <div className="flex justify-between text-xs text-muted mb-2 transition-colors">
               <span>You Pay</span>
               <span>Available <span className="text-primary font-mono ml-0.5">0.00</span></span>
@@ -130,7 +125,6 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {/* Flip Wrapper */}
             <div className="relative flex justify-center -my-6 z-10 pointer-events-none">
               <button
                 onClick={flip}
@@ -142,7 +136,6 @@ export default function SwapPage() {
               </button>
             </div>
 
-            {/* You Receive */}
             <div className="flex justify-between text-xs text-muted mb-2 mt-4 transition-colors">
               <span>You Receive</span>
             </div>
@@ -155,7 +148,6 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {/* Swap Details */}
             <div className="mt-6 pt-4 border-t border-border space-y-2 text-xs font-mono transition-colors">
               <div className="flex justify-between">
                 <span className="text-muted font-sans cursor-default">Execution Rate</span>
@@ -175,7 +167,6 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {/* Action Button */}
             <div className="mt-6 flex space-x-3">
               <button className="flex-1 bg-primary hover:bg-opacity-80 text-background font-sans font-medium py-2 rounded-md text-sm transition-opacity">
                 Connect Wallet
@@ -185,7 +176,6 @@ export default function SwapPage() {
           </div>
         </div>
 
-        {/* Global Market Price */}
         <PriceCard symbol={receiveToken} />
 
       </div>

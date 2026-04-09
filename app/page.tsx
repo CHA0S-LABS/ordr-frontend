@@ -9,6 +9,8 @@ import OrderForm from './components/OrderForm';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Menu, X } from 'lucide-react';
 import { useBinanceTicker } from './hooks/useBinanceTicker';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 const Chart = dynamic(() => import('./components/Chart'), { ssr: false });
 
@@ -36,7 +38,6 @@ const PAIRS = [
   { label: 'ETH-USD', symbol: 'BINANCE:ETHUSDT', binanceSymbol: 'ETHUSDT' },
 ];
 
-// Header heights: row1=56, row2=36 → total=92px. Bottom tab=40px.
 const HEADER_H = 92;
 const BOTTOM_H = 40;
 
@@ -46,13 +47,25 @@ export default function Home() {
   const [activePair, setActivePair] = useState(PAIRS[0]);
   const [menuOpen, setMenuOpen] = useState(false);
   const ticker = useBinanceTicker(activePair.binanceSymbol);
+  const { connected, publicKey, disconnect } = useWallet();
+  const { setVisible } = useWalletModal();
+
+  const shortAddress = publicKey
+    ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
+    : null;
+
+  function handleConnect() {
+    if (connected) {
+      disconnect();
+    } else {
+      setVisible(true);
+    }
+  }
 
   return (
     <main className="bg-background text-primary font-sans h-[100dvh] lg:h-auto overflow-hidden lg:overflow-visible flex flex-col lg:block relative">
 
-      {/* Header: Row 1 (nav) + Row 2 (ticker) only — no pair detail row */}
       <header className="sticky top-0 z-50 shrink-0 border-b border-border bg-surface">
-        {/* Row 1 */}
         <div className="h-14 flex items-center justify-between px-3 md:px-5 border-b border-border">
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-3">
@@ -66,8 +79,11 @@ export default function Home() {
           </div>
           <div className="flex items-center space-x-2">
             <ThemeToggle />
-            <button className="hidden sm:flex items-center px-3 py-1.5 border border-border text-xs font-mono hover:bg-surface-hover transition-colors">
-              4YIY273..
+            <button
+              onClick={handleConnect}
+              className="flex items-center px-3 py-1.5 border border-border text-xs font-mono hover:bg-surface-hover transition-colors cursor-pointer"
+            >
+              {connected && shortAddress ? shortAddress : 'Connect'}
             </button>
             <button
               className="p-1.5 hover:bg-surface-hover lg:hidden text-primary"
@@ -79,7 +95,6 @@ export default function Home() {
         </div>
 
 
-        {/* Row 2: Ticker strip */}
         <div className="h-9 flex items-center px-3 md:px-5 space-x-5 overflow-x-auto hide-scrollbar">
           {PAIRS.map(pair => (
             <TickerStripItem
@@ -92,14 +107,11 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Trading Area */}
       <div
         className="flex-1 lg:flex-none flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-visible relative pb-14 lg:pb-0"
         style={{ height: `calc(100vh - ${HEADER_H}px - ${BOTTOM_H}px)` }}
       >
-        {/* Left: Chart */}
         <div className={`flex-1 flex-col bg-background min-w-0 border-b lg:border-b-0 lg:border-r border-border ${mobileView === 'order' ? 'hidden lg:flex' : 'flex'}`}>
-          {/* Pair detail sub-header — only in chart column */}
           <div className="h-16 flex items-center px-3 md:px-4 space-x-4 md:space-x-5 border-b border-border bg-surface shrink-0 overflow-x-auto hide-scrollbar">
             <div className="flex items-center space-x-2 shrink-0">
               <span className="text-base font-bold tracking-wide">{activePair.label}</span>
@@ -122,7 +134,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Timeframe bar */}
           <div className="h-10 border-b border-border flex items-center px-4 bg-surface shrink-0">
             <div className="flex space-x-4">
               {['5m', '15m', '1H', '4H', '1D'].map((tf, i) => (
@@ -138,7 +149,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Center & Right: Orderbook & Orderform — start from top, no sub-header */}
         <div className={`flex lg:flex ${mobileView === 'charts' ? 'hidden lg:flex' : 'flex-1 lg:flex-none'}`}>
           <div className="w-1/2 lg:w-[300px] xl:w-[320px] border-r border-border bg-background flex-shrink-0">
             <OrderBook />
@@ -149,7 +159,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Mobile Toggle */}
       <div className="lg:hidden absolute bottom-6 flex w-full justify-center pointer-events-none z-50">
         <div className="bg-surface border border-border rounded-full p-1 flex space-x-1 pointer-events-auto shadow-xl">
           <button
@@ -167,13 +176,11 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
       <div
         className={`fixed inset-0 z-[60] bg-black/50 transition-opacity duration-300 lg:hidden ${menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setMenuOpen(false)}
       />
 
-      {/* Mobile Sidebar */}
       <div
         className={`fixed top-0 right-0 z-[70] h-full w-64 bg-surface border-l border-border flex flex-col transition-transform duration-300 ease-in-out lg:hidden ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
@@ -188,11 +195,15 @@ export default function Home() {
           <Link href="/swap" onClick={() => setMenuOpen(false)} className="flex items-center px-5 py-3 text-sm text-muted border-b border-border hover:bg-surface-hover hover:text-primary transition-colors">Swap</Link>
         </nav>
         <div className="px-5 py-4 border-t border-border shrink-0">
-          <button className="w-full py-2 border border-border text-xs font-mono text-primary hover:bg-surface-hover transition-colors">Connect Wallet</button>
+          <button
+            onClick={handleConnect}
+            className="w-full py-2 border border-border text-xs font-mono text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+          >
+            {connected && shortAddress ? shortAddress : 'Connect Wallet'}
+          </button>
         </div>
       </div>
 
-      {/* Desktop Bottom Panel */}
       <div className="hidden lg:block">
         <div className="min-h-[260px] border-t border-border bg-surface flex items-center justify-center pb-10">
           <span className="text-muted text-xs">Nothing here yet.</span>

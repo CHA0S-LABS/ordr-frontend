@@ -12,7 +12,6 @@ export default function Chart({ symbol }: { symbol: string }) {
 
     const el = containerRef.current;
 
-    // Fade out, swap chart, fade back in
     el.style.transition = 'opacity 0.15s ease';
     el.style.opacity = '0';
 
@@ -49,7 +48,6 @@ export default function Chart({ symbol }: { symbol: string }) {
       wrapper.appendChild(script);
       el.appendChild(wrapper);
 
-      // Fade back in after widget has had time to load
       setTimeout(() => {
         el.style.opacity = '1';
       }, 800);

@@ -14,7 +14,6 @@ export default function OrderForm() {
 
   return (
     <div className="flex flex-col h-full w-full bg-background border-l border-border">
-      {/* Tabs */}
       <div className="h-16 flex items-end space-x-4 lg:space-x-6 px-2 lg:px-4 pb-2 border-b border-border text-xs lg:text-sm">
         <button
           className={`font-sans tracking-wide pb-1 border-b-2 transition-colors ${tab === 'market' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-primary'}`}
@@ -59,10 +58,8 @@ export default function OrderForm() {
             </div>
           )}
 
-          {/* Slider */}
           <div className="pt-6 pb-4">
             <div className="relative flex items-center group">
-              {/* Background Step Dots */}
               <div className="absolute left-[8px] right-[8px] flex justify-between pointer-events-none z-0">
                 {[0, 25, 50, 75, 100].map(v => (
                   <div
@@ -85,7 +82,6 @@ export default function OrderForm() {
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="mt-4 flex space-x-3">
           <button className="flex-1 bg-bid hover:bg-bid-hover text-white font-sans font-medium py-2 rounded-md text-sm transition-colors">
             Buy
@@ -95,10 +91,7 @@ export default function OrderForm() {
           </button>
         </div>
 
-        {/* Bottom Info */}
         <div className="mt-auto pt-4 border-t border-border space-y-0">
-
-          {/* Slippage Tolerance — market orders only */}
           {tab === 'market' && (
             <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
               <span className="text-xs text-muted font-sans">Slippage Tolerance</span>
@@ -123,7 +116,6 @@ export default function OrderForm() {
             </div>
           )}
 
-          {/* Limit order options */}
           {tab === 'limit' && (
             <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
               <span className="text-xs text-muted font-sans">Time in Force</span>
@@ -137,7 +129,6 @@ export default function OrderForm() {
             </div>
           )}
 
-          {/* Order Stats */}
           <div className="space-y-2.5 text-xs font-mono">
             <div className="flex justify-between">
               <span className="text-muted font-sans">Order Value</span>

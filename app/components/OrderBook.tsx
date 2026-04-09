@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Format helpers
 const fp = (n: number) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 const fs = (n: number) => {
   if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
@@ -71,12 +70,11 @@ export default function OrderBook() {
     { price: 149.85, size: 801300 },
   ];
 
-  // Calculate moving sums
   let currentAskSum = 0;
   const asksWithSum = asks.map(ask => {
     currentAskSum += ask.size;
     return { ...ask, sum: currentAskSum };
-  }).reverse(); // Reverse back for display (highest price at top)
+  }).reverse();
 
   let currentBidSum = 0;
   const bidsWithSum = bids.map(bid => {
@@ -91,7 +89,6 @@ export default function OrderBook() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden w-full bg-background transition-colors">
-      {/* Tabs — h-16 matches the chart column's pair detail sub-header */}
       <div className="h-16 flex items-end border-b border-border px-2 lg:px-4">
         <button className="text-primary font-sans font-medium text-sm pb-2 border-b-2 border-primary mr-6 transition-colors">
           Book
@@ -101,10 +98,8 @@ export default function OrderBook() {
         </button>
       </div>
 
-      {/* Controls Header */}
       <div className="flex justify-between items-center px-2 lg:px-4 py-2 border-b border-border transition-colors">
         <div className="flex space-x-2.5">
-           {/* Display mode buttons */}
            <button className="flex flex-col space-y-0.5 w-4 h-4 justify-center items-center hover:opacity-80 transition-opacity">
              <div className="w-3.5 h-1bg-none border-b-2 border-ask"></div>
              <div className="w-3.5 h-1bg-none border-b-2 border-bid"></div>
@@ -126,16 +121,13 @@ export default function OrderBook() {
         </div>
       </div>
 
-      {/* Column Headers */}
       <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted transition-colors">
         <div className="w-1/3 text-left">Price</div>
         <div className="w-1/3 text-right">Size</div>
         <div className="w-1/3 text-right">Total</div>
       </div>
       
-      {/* Scrollable Book */}
       <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
-        {/* Asks (Top) */}
         <div className="flex flex-col">
           {asksWithSum.map((ask, i) => (
             <OrderRow 
@@ -149,7 +141,6 @@ export default function OrderBook() {
           ))}
         </div>
 
-        {/* Spread */}
         <div className="py-2 flex items-center px-2 lg:px-4 my-1 border-y border-transparent transition-colors">
           <div className="text-bid text-lg font-mono flex items-center mr-3 font-semibold">
             150.00 <span className="ml-1 text-base font-bold">↑</span>
@@ -163,7 +154,6 @@ export default function OrderBook() {
           </div>
         </div>
 
-        {/* Bids (Bottom) */}
         <div className="flex flex-col">
           {bidsWithSum.map((bid, i) => (
             <OrderRow 
@@ -178,7 +168,6 @@ export default function OrderBook() {
         </div>
       </div>
 
-      {/* Ratio Bar */}
       <div className="px-2 lg:px-4 py-3 mt-auto border-t border-border flex flex-col justify-center shrink-0 transition-colors">
         <div className="flex justify-between text-xs font-mono mb-1">
            <span className="text-bid font-medium">Buy 57.00%</span>

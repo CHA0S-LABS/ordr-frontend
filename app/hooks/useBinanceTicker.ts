@@ -29,21 +29,19 @@ function fmtUSD(n: number): string {
   return "$" + n.toFixed(2);
 }
 
-// Map our pair labels to CoinGecko IDs
 const COINGECKO_ID: Record<string, string> = {
   SOLUSDT: "solana",
   BTCUSDT: "bitcoin",
   ETHUSDT: "ethereum",
 };
 
-// Cache shared across all hook instances — one fetch for all pairs
 let cache: Record<string, TickerData> = {};
 let lastFetch = 0;
 const listeners = new Set<() => void>();
 
 async function fetchAll() {
   const now = Date.now();
-  if (now - lastFetch < 15_000) return; // throttle: min 15s between fetches
+  if (now - lastFetch < 15_000) return;
   lastFetch = now;
 
   try {
@@ -63,7 +61,6 @@ async function fetchAll() {
       market_cap: number;
     }> = await res.json();
 
-    // Rebuild cache indexed by binanceSymbol
     const byId: Record<string, (typeof coins)[0]> = {};
     for (const c of coins) byId[c.id] = c;
 
@@ -97,7 +94,7 @@ export function useBinanceTicker(binanceSymbol: string): TickerData | null {
     const update = () => setData(cache[binanceSymbol] ?? null);
     listeners.add(update);
 
-    fetchAll(); // fetch immediately
+    fetchAll();
     const interval = setInterval(fetchAll, 30_000);
 
     return () => {
