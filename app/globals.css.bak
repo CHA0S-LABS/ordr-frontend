@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root, .dark {
+  --background: #000000;
+  --surface: #0a0a0a;
+  --surface-hover: #111111;
+  --border: #1a1a1a;
+  --text-primary: #e8e8e8;
+  --text-muted: #555555;
+  --ask: #c0392b;
+  --bid: #1a7a4a;
+}
+
+.light {
+  --background: #ffffff;
+  --surface: #f9f9f9;
+  --surface-hover: #f1f1f1;
+  --border: #e5e5e5;
+  --text-primary: #111111;
+  --text-muted: #737373;
+  --ask: #d93025;
+  --bid: #188038;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-primary: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-ask: var(--ask);
+  --color-bid: var(--bid);
+  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+}
