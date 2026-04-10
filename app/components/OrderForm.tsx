@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
+import { useMatchOrder } from '@/lib/solana/hooks/use-match-order';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 const SLIPPAGE_PRESETS = ['0.1%', '0.5%', '1%'];
 
@@ -11,6 +13,17 @@ export default function OrderForm() {
   const [slippage, setSlippage] = useState('0.5%');
   const [customSlippage, setCustomSlippage] = useState('');
   const [sizeVal, setSizeVal] = useState('');
+  const [limitPriceVal, setLimitPriceVal] = useState('');
+
+  const { connected } = useWallet();
+  const { submit, loading, error, signature } = useMatchOrder();
+
+  function handleOrder(side: 'bid' | 'ask') {
+    const size = parseFloat(sizeVal);
+    if (!size || size <= 0) return;
+    const limitPrice = tab === 'limit' && limitPriceVal ? parseFloat(limitPriceVal) : undefined;
+    submit(side, size, limitPrice);
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-background border-l border-border">
@@ -52,6 +65,8 @@ export default function OrderForm() {
               <input
                 type="text"
                 placeholder="0.00"
+                value={limitPriceVal}
+                onChange={e => setLimitPriceVal(e.target.value)}
                 className="bg-surface border border-border text-primary p-2 pr-12 font-mono text-sm w-full focus:outline-none focus:border-muted transition-colors"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary border-l border-border pl-2">Price</span>
@@ -83,13 +98,35 @@ export default function OrderForm() {
         </div>
 
         <div className="mt-4 flex space-x-3">
-          <button className="flex-1 bg-bid hover:bg-bid-hover text-white font-sans font-medium py-2 rounded-md text-sm transition-colors">
-            Buy
+          <button
+            onClick={() => handleOrder('bid')}
+            disabled={!connected || loading}
+            className="flex-1 bg-bid hover:bg-bid-hover text-white font-sans font-medium py-2 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Submitting...' : 'Buy'}
           </button>
-          <button className="flex-1 bg-ask hover:bg-ask-hover text-white font-sans font-medium py-2 rounded-md text-sm transition-colors">
-            Sell
+          <button
+            onClick={() => handleOrder('ask')}
+            disabled={!connected || loading}
+            className="flex-1 bg-ask hover:bg-ask-hover text-white font-sans font-medium py-2 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Submitting...' : 'Sell'}
           </button>
         </div>
+
+        {error && (
+          <p className="mt-2 text-xs text-ask font-mono">{error}</p>
+        )}
+        {signature && (
+          <a
+            href={`https://solscan.io/tx/${signature}?cluster=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 text-xs text-bid font-mono underline truncate block"
+          >
+            {signature.slice(0, 16)}... view on solscan
+          </a>
+        )}
 
         <div className="mt-auto pt-4 border-t border-border space-y-0">
           {tab === 'market' && (
