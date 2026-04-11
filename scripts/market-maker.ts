@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import {
   Connection,
   Keypair,
@@ -10,16 +13,11 @@ import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
 import fs from "fs";
 import os from "os";
 
-const RPC_URL =
-  "https://devnet.helius-rpc.com/?api-key=e3c410a6-6c04-4320-b010-29a4d3c6e878";
-const PROGRAM_ID = new PublicKey(
-  "H19wJgpk4kMbVqTa8XiwRQ5CipTKwsjHAWViHZRazJRZ",
-);
-const BASE_MINT = new PublicKey("hKwwi3aPDT6oBtLuSRzmL9ZECntXX3WopnWJi2uS6ez");
-const QUOTE_MINT = new PublicKey(
-  "AFj6Eq85uFcsq2YdnKgvAHo4ie384m7QxUyzvTjtB1t2",
-);
-const BACKEND_URL = "http://localhost:8080";
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
+const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID!);
+const BASE_MINT = new PublicKey(process.env.NEXT_PUBLIC_BASE_MINT!);
+const QUOTE_MINT = new PublicKey(process.env.NEXT_PUBLIC_QUOTE_MINT!);
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 
 const CANCEL_THRESHOLD = 84;
 const CANCEL_COUNT = 2;

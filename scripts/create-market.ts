@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import {
   Connection,
   Keypair,
@@ -14,10 +17,10 @@ import {
 import fs from "fs";
 import os from "os";
 
-const PROGRAM_ID  = new PublicKey("H19wJgpk4kMbVqTa8XiwRQ5CipTKwsjHAWViHZRazJRZ");
-const BASE_MINT   = new PublicKey("GEjeUy1qKXga6qWryq4qhVUYM9vRMZMsgFvWQknuus77");
-const QUOTE_MINT  = new PublicKey("H8zaJkqUaVrwCriWg9L9poa5oPhMCFFYtLWezqiAwPnP");
-const RPC_URL     = "https://api.devnet.solana.com";
+const PROGRAM_ID  = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID!);
+const BASE_MINT   = new PublicKey(process.env.NEXT_PUBLIC_BASE_MINT!);
+const QUOTE_MINT  = new PublicKey(process.env.NEXT_PUBLIC_QUOTE_MINT!);
+const RPC_URL     = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
 
 const TICK_SIZE  = 1n;
 const LOT_SIZE   = 1n;

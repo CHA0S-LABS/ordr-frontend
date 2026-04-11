@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import {
   Connection,
   Keypair,
@@ -13,11 +16,9 @@ import {
 import fs from "fs";
 import os from "os";
 
-const BASE_MINT = new PublicKey("hKwwi3aPDT6oBtLuSRzmL9ZECntXX3WopnWJi2uS6ez");
-const QUOTE_MINT = new PublicKey(
-  "AFj6Eq85uFcsq2YdnKgvAHo4ie384m7QxUyzvTjtB1t2",
-);
-const RPC_URL = "https://api.devnet.solana.com";
+const BASE_MINT = new PublicKey(process.env.NEXT_PUBLIC_BASE_MINT!);
+const QUOTE_MINT = new PublicKey(process.env.NEXT_PUBLIC_QUOTE_MINT!);
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
 const AMOUNT = 1_000_000n;
 
 async function main() {

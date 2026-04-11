@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import {
   Connection,
   Keypair,
@@ -21,11 +24,8 @@ import {
 import fs from "fs";
 import os from "os";
 
-const PROGRAM_ID = new PublicKey(
-  "H19wJgpk4kMbVqTa8XiwRQ5CipTKwsjHAWViHZRazJRZ",
-);
-const RPC_URL =
-  "https://devnet.helius-rpc.com/?api-key=e3c410a6-6c04-4320-b010-29a4d3c6e878";
+const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID!);
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
 
 const TICK_SIZE = 1n;
 const LOT_SIZE = 1n;
@@ -157,68 +157,16 @@ async function main() {
 
   console.log("\n[7] Placing test orders (mid=150, tick=1)...");
 
-  await placeOrder(
-    connection,
-    authority,
-    marketPda,
-    askKp.publicKey,
-    bidKp.publicKey,
-    baseVaultKp.publicKey,
-    quoteVaultKp.publicKey,
-    baseAta,
-    quoteAta,
-    -2n,
-    0,
-    100n,
-  );
+  await placeOrder(connection, authority, marketPda, askKp.publicKey, bidKp.publicKey, baseVaultKp.publicKey, quoteVaultKp.publicKey, baseAta, quoteAta, -2n, 0, 100n);
   console.log("  BID offset=-2 price=148 size=100");
 
-  await placeOrder(
-    connection,
-    authority,
-    marketPda,
-    askKp.publicKey,
-    bidKp.publicKey,
-    baseVaultKp.publicKey,
-    quoteVaultKp.publicKey,
-    baseAta,
-    quoteAta,
-    -5n,
-    0,
-    200n,
-  );
+  await placeOrder(connection, authority, marketPda, askKp.publicKey, bidKp.publicKey, baseVaultKp.publicKey, quoteVaultKp.publicKey, baseAta, quoteAta, -5n, 0, 200n);
   console.log("  BID offset=-5 price=145 size=200");
 
-  await placeOrder(
-    connection,
-    authority,
-    marketPda,
-    askKp.publicKey,
-    bidKp.publicKey,
-    baseVaultKp.publicKey,
-    quoteVaultKp.publicKey,
-    baseAta,
-    quoteAta,
-    3n,
-    1,
-    150n,
-  );
+  await placeOrder(connection, authority, marketPda, askKp.publicKey, bidKp.publicKey, baseVaultKp.publicKey, quoteVaultKp.publicKey, baseAta, quoteAta, 3n, 1, 150n);
   console.log("  ASK offset=+3 price=153 size=150");
 
-  await placeOrder(
-    connection,
-    authority,
-    marketPda,
-    askKp.publicKey,
-    bidKp.publicKey,
-    baseVaultKp.publicKey,
-    quoteVaultKp.publicKey,
-    baseAta,
-    quoteAta,
-    7n,
-    1,
-    50n,
-  );
+  await placeOrder(connection, authority, marketPda, askKp.publicKey, bidKp.publicKey, baseVaultKp.publicKey, quoteVaultKp.publicKey, baseAta, quoteAta, 7n, 1, 50n);
   console.log("  ASK offset=+7 price=157 size=50");
 
   console.log(`
@@ -234,19 +182,9 @@ Ask slab:     ${askKp.publicKey.toBase58()}
 Base vault:   ${baseVaultKp.publicKey.toBase58()}
 Quote vault:  ${quoteVaultKp.publicKey.toBase58()}
 
-Orderbook:
-  Bids: 148 x100, 145 x200
-  Asks: 153 x150, 157 x50
-
-Add to ordr-backend/.env:
-PROGRAM_ID=${PROGRAM_ID.toBase58()}
-BASE_MINT=${baseMintKp.publicKey.toBase58()}
-QUOTE_MINT=${quoteMintKp.publicKey.toBase58()}
-
-Add to f/lib/chain-config.ts:
-PROGRAM_ID = "${PROGRAM_ID.toBase58()}"
-BASE_MINT  = "${baseMintKp.publicKey.toBase58()}"
-QUOTE_MINT = "${quoteMintKp.publicKey.toBase58()}"
+Update .env.local:
+NEXT_PUBLIC_BASE_MINT=${baseMintKp.publicKey.toBase58()}
+NEXT_PUBLIC_QUOTE_MINT=${quoteMintKp.publicKey.toBase58()}
 `);
 }
 
