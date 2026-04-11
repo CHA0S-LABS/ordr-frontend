@@ -1,14 +1,3 @@
-/**
- * create-market.ts
- *
- * Creates a new market on devnet for the deployed Ordr program.
- *
- * Run:
- *   npx tsx scripts/create-market.ts
- *
- * Requires: ~/.config/solana/id.json (your devnet keypair with SOL)
- */
-
 import {
   Connection,
   Keypair,
@@ -25,35 +14,28 @@ import {
 import fs from "fs";
 import os from "os";
 
-// ── Config ────────────────────────────────────────────────────────────────────
 const PROGRAM_ID  = new PublicKey("H19wJgpk4kMbVqTa8XiwRQ5CipTKwsjHAWViHZRazJRZ");
 const BASE_MINT   = new PublicKey("GEjeUy1qKXga6qWryq4qhVUYM9vRMZMsgFvWQknuus77");
 const QUOTE_MINT  = new PublicKey("H8zaJkqUaVrwCriWg9L9poa5oPhMCFFYtLWezqiAwPnP");
 const RPC_URL     = "https://api.devnet.solana.com";
 
-// Market params — adjust to match your existing order book data
-const TICK_SIZE  = 1n;   // 1 unit per tick
-const LOT_SIZE   = 1n;   // minimum order size
-const MID_PRICE  = 150n; // starting mid price (match what's in DB)
+const TICK_SIZE  = 1n;
+const LOT_SIZE   = 1n;
+const MID_PRICE  = 150n;
 
-// Slab size: 32 header + 90 * (16 inner + 88 leaf) = 9392 bytes
 const CAPACITY  = 90;
 const SLAB_SIZE = 32 + CAPACITY * (16 + 88);
 
-// SPL token account size
 const TOKEN_ACCOUNT_SIZE = 165;
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
   const connection = new Connection(RPC_URL, "confirmed");
 
-  // Load authority keypair
   const keypairPath = `${os.homedir()}/.config/solana/id.json`;
   const keypairData = JSON.parse(fs.readFileSync(keypairPath, "utf-8"));
   const authority = Keypair.fromSecretKey(new Uint8Array(keypairData));
   console.log("Authority:", authority.publicKey.toBase58());
 
-  // Derive market PDA: [b"market", base_mint, quote_mint, authority]
   const [marketPda, marketBump] = PublicKey.findProgramAddressSync(
     [
       Buffer.from("market"),
@@ -65,7 +47,6 @@ async function main() {
   );
   console.log("Market PDA:", marketPda.toBase58(), "  bump:", marketBump);
 
-  // Generate fresh keypairs for the pre-allocated accounts
   const bidKp        = Keypair.generate();
   const askKp        = Keypair.generate();
   const baseVaultKp  = Keypair.generate();
@@ -81,7 +62,6 @@ async function main() {
 
   const tx = new Transaction();
 
-  // 1. Allocate bid slab — owner = program
   tx.add(SystemProgram.createAccount({
     fromPubkey: authority.publicKey,
     newAccountPubkey: bidKp.publicKey,
@@ -90,7 +70,6 @@ async function main() {
     programId: PROGRAM_ID,
   }));
 
-  // 2. Allocate ask slab — owner = program
   tx.add(SystemProgram.createAccount({
     fromPubkey: authority.publicKey,
     newAccountPubkey: askKp.publicKey,
@@ -99,7 +78,6 @@ async function main() {
     programId: PROGRAM_ID,
   }));
 
-  // 3. Allocate + init base vault — owner = market PDA
   tx.add(SystemProgram.createAccount({
     fromPubkey: authority.publicKey,
     newAccountPubkey: baseVaultKp.publicKey,
@@ -114,7 +92,6 @@ async function main() {
     TOKEN_PROGRAM_ID,
   ));
 
-  // 4. Allocate + init quote vault — owner = market PDA
   tx.add(SystemProgram.createAccount({
     fromPubkey: authority.publicKey,
     newAccountPubkey: quoteVaultKp.publicKey,
@@ -129,15 +106,12 @@ async function main() {
     TOKEN_PROGRAM_ID,
   ));
 
-  // 5. create_market instruction
-  // Layout: [discriminator(1)][tick_size(8)][lot_size(8)][mid_price(8)][bump(1)][pad(7)]
   const ixData = Buffer.alloc(33);
-  ixData.writeUInt8(0, 0);               // discriminator = 0
+  ixData.writeUInt8(0, 0);
   ixData.writeBigUInt64LE(TICK_SIZE,  1);
   ixData.writeBigUInt64LE(LOT_SIZE,   9);
   ixData.writeBigUInt64LE(MID_PRICE, 17);
   ixData.writeUInt8(marketBump, 25);
-  // bytes 26-32: zero padding
 
   tx.add(new TransactionInstruction({
     programId: PROGRAM_ID,

@@ -1,10 +1,3 @@
-/**
- * fund-wallet.ts — Mints base + quote tokens to a target wallet.
- *
- * Usage:
- *   npx tsx scripts/fund-wallet.ts <WALLET_ADDRESS>
- */
-
 import {
   Connection,
   Keypair,
@@ -20,9 +13,9 @@ import {
 import fs from "fs";
 import os from "os";
 
-const BASE_MINT = new PublicKey("12KFT8391vptEKjGKNWk4LhQm8jAXnFq427FHJ812vrh");
+const BASE_MINT = new PublicKey("hKwwi3aPDT6oBtLuSRzmL9ZECntXX3WopnWJi2uS6ez");
 const QUOTE_MINT = new PublicKey(
-  "EtZbvEjCjwAmhmmBg84qC4S5Hw1GsdaTNGV3CuyjZQcR",
+  "AFj6Eq85uFcsq2YdnKgvAHo4ie384m7QxUyzvTjtB1t2",
 );
 const RPC_URL = "https://api.devnet.solana.com";
 const AMOUNT = 1_000_000n;

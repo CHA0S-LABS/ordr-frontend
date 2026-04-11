@@ -26,7 +26,6 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
   if (!wallet.publicKey) throw new Error("Wallet not connected");
   if (!wallet.signTransaction) throw new Error("Wallet does not support signing");
 
-  // 1. Derive taker ATAs and create any that don't exist yet
   const { baseAta, quoteAta } = await getTakerATAs(wallet.publicKey);
 
   const [baseInfo, quoteInfo] = await Promise.all([
@@ -55,7 +54,6 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
     await CONNECTION.confirmTransaction(setupSig, "confirmed");
   }
 
-  // 2. Call backend to get unsigned transaction
   const res = await fetch(`/api/match_order`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -78,29 +76,23 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
 
   if (!base64Tx) throw new Error("No transaction returned — no liquidity or price outside limit");
 
-  // 3. Deserialize the unsigned transaction
   const txBytes = Buffer.from(base64Tx, "base64");
   const tx = Transaction.from(txBytes);
 
-  // 4. Sign with wallet
   const signedTx = await wallet.signTransaction(tx);
 
-  // 5. Send and confirm
   const signature = await sendWithRetry(signedTx.serialize());
   await CONNECTION.confirmTransaction(signature, "confirmed");
 
   return { signature };
 }
 
-// Sends a raw transaction and treats "already processed" as success
-// (tx landed but confirmation timed out on a previous attempt).
 async function sendWithRetry(rawTx: Buffer | Uint8Array): Promise<string> {
   try {
     return await CONNECTION.sendRawTransaction(rawTx, { skipPreflight: false });
   } catch (e: any) {
     const msg: string = e?.message ?? "";
     if (msg.includes("already been processed") || msg.includes("AlreadyProcessed")) {
-      // Extract signature from the error — it's already on-chain
       const match = msg.match(/([1-9A-HJ-NP-Za-km-z]{87,88})/);
       if (match) return match[1];
     }
