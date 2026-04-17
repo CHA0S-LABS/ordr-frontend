@@ -24,6 +24,8 @@ export function useMatchOrder() {
       return;
     }
 
+    if (state.loading) return;
+
     setState({ loading: true, error: null, signature: null });
 
     try {

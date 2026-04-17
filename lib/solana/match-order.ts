@@ -1,4 +1,5 @@
 import { Transaction } from "@solana/web3.js";
+import bs58 from "bs58";
 import {
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddress,
@@ -81,20 +82,32 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
 
   const signedTx = await wallet.signTransaction(tx);
 
-  const signature = await sendWithRetry(signedTx.serialize());
-  await CONNECTION.confirmTransaction(signature, "confirmed");
+  // derive the txid from the signature bytes before sending — this is always correct
+  const sigBytes = signedTx.signatures[0]?.signature;
+  const knownSig = sigBytes ? bs58.encode(sigBytes) : null;
 
-  return { signature };
+  const signature = await sendWithRetry(signedTx.serialize(), knownSig);
+  if (signature !== knownSig) {
+    // different sig means it wasn't the "already processed" path — confirm normally
+    await CONNECTION.confirmTransaction(signature, "confirmed");
+  } else {
+    // already on-chain, no need to confirm
+  }
+
+  return { signature: signature === knownSig ? knownSig! : signature };
 }
 
-async function sendWithRetry(rawTx: Buffer | Uint8Array): Promise<string> {
+async function sendWithRetry(rawTx: Buffer | Uint8Array, fallbackSig?: string | null): Promise<string> {
   try {
     return await CONNECTION.sendRawTransaction(rawTx, { skipPreflight: false });
   } catch (e: any) {
     const msg: string = e?.message ?? "";
     if (msg.includes("already been processed") || msg.includes("AlreadyProcessed")) {
+      // tx already landed — use the sig we computed from the signed bytes
       const match = msg.match(/([1-9A-HJ-NP-Za-km-z]{87,88})/);
       if (match) return match[1];
+      if (fallbackSig) return fallbackSig;
+      throw e;
     }
     throw e;
   }
