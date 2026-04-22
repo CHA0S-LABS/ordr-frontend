@@ -3,6 +3,7 @@ import { Poppins, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { SolanaWalletProvider } from "./components/WalletProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 const poppins = Poppins({
   variable: "--font-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
         >
           <SolanaWalletProvider>
             {children}
+            <Toaster position="bottom-right" richColors closeButton />
           </SolanaWalletProvider>
         </ThemeProvider>
       </body>

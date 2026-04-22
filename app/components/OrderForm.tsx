@@ -4,8 +4,19 @@ import React, { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { useMatchOrder } from '@/lib/solana/hooks/use-match-order';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useOrderbook } from '@/app/hooks/useOrderbook';
+import { useTokenBalances } from '@/app/hooks/useTokenBalances';
+
+const PRICE_SCALE = 1_000_000;
+const SIZE_SCALE = 1_000_000_000;
 
 const SLIPPAGE_PRESETS = ['0.1%', '0.5%', '1%'];
+
+const fp = (n: number) =>
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 
 export default function OrderForm() {
   const [tab, setTab] = useState<'limit' | 'market'>('market');
@@ -16,14 +27,48 @@ export default function OrderForm() {
   const [limitPriceVal, setLimitPriceVal] = useState('');
 
   const { connected } = useWallet();
-  const { submit, loading, error, signature } = useMatchOrder();
+  const { submit, loading } = useMatchOrder();
+  const ob = useOrderbook();
+  const { baseBalance } = useTokenBalances();
+
+  const bestAskRaw = ob.asks[0]?.price ?? null;
+  const bestBidRaw = ob.bids[0]?.price ?? null;
+
+  const availableSOL = baseBalance !== null ? baseBalance / SIZE_SCALE : null;
+
+  const sizeInSol = parseFloat(sizeVal) || 0;
+  const estFillAsk = bestAskRaw ? bestAskRaw / PRICE_SCALE : null;
+  const estFillBid = bestBidRaw ? bestBidRaw / PRICE_SCALE : null;
+  const midPrice = estFillAsk && estFillBid ? (estFillAsk + estFillBid) / 2 : estFillAsk ?? estFillBid;
+  const orderValueUSD = sizeInSol > 0 && midPrice ? sizeInSol * midPrice : 0;
 
   function handleOrder(side: 'bid' | 'ask') {
-    const size = parseFloat(sizeVal);
-    if (!size || size <= 0) return;
-    const limitPrice = tab === 'limit' && limitPriceVal ? parseFloat(limitPriceVal) : undefined;
-    submit(side, size, limitPrice);
+    const sizeRaw = Math.round(sizeInSol * SIZE_SCALE);
+    if (!sizeRaw || sizeRaw <= 0) return;
+
+    let limitPriceRaw: number | undefined;
+
+    if (tab === 'limit') {
+      if (limitPriceVal) {
+        limitPriceRaw = Math.round(parseFloat(limitPriceVal) * PRICE_SCALE);
+      }
+    } else {
+      const slippagePct = parseFloat(customSlippage || slippage.replace('%', '')) || 0.5;
+      if (side === 'bid' && bestAskRaw !== null) {
+        limitPriceRaw = Math.ceil(bestAskRaw * (1 + slippagePct / 100));
+      } else if (side === 'ask' && bestBidRaw !== null) {
+        limitPriceRaw = Math.floor(bestBidRaw * (1 - slippagePct / 100));
+      }
+    }
+
+    submit(side, sizeRaw, limitPriceRaw);
   }
+
+  const slippagePct = parseFloat(customSlippage || slippage.replace('%', '')) || 0.5;
+  const takerFeeRate = 0.0025;
+  const feeUSD = orderValueUSD * takerFeeRate;
+  const makerFeeRate = 0.001;
+  const makerFeeUSD = orderValueUSD * makerFeeRate;
 
   return (
     <div className="flex flex-col h-full w-full bg-background border-l border-border">
@@ -46,7 +91,12 @@ export default function OrderForm() {
         <div className="space-y-4">
           <div className="flex justify-between text-xs text-muted mb-1">
             <span>Size</span>
-            <span>Available <span className="text-primary">10,000.00</span></span>
+            <span>
+              Available{' '}
+              <span className="text-primary">
+                {availableSOL !== null ? `${availableSOL.toFixed(4)} SOL` : '—'}
+              </span>
+            </span>
           </div>
 
           <div className="relative">
@@ -57,7 +107,7 @@ export default function OrderForm() {
               onChange={e => setSizeVal(e.target.value)}
               className="bg-surface border border-border text-primary p-2 pr-12 font-mono text-sm w-full focus:outline-none focus:border-muted transition-colors"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary border-l border-border pl-2">USD</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary border-l border-border pl-2">SOL</span>
           </div>
 
           {tab === 'limit' && (
@@ -69,7 +119,7 @@ export default function OrderForm() {
                 onChange={e => setLimitPriceVal(e.target.value)}
                 className="bg-surface border border-border text-primary p-2 pr-12 font-mono text-sm w-full focus:outline-none focus:border-muted transition-colors"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary border-l border-border pl-2">Price</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary border-l border-border pl-2">USD</span>
             </div>
           )}
 
@@ -85,7 +135,7 @@ export default function OrderForm() {
                   />
                 ))}
               </div>
-              
+
               <Slider
                 value={sliderVal}
                 onValueChange={(val: any) => setSliderVal(Array.isArray(val) ? val : [val])}
@@ -114,19 +164,6 @@ export default function OrderForm() {
           </button>
         </div>
 
-        {error && (
-          <p className="mt-2 text-xs text-ask font-mono">{error}</p>
-        )}
-        {signature && (
-          <a
-            href={`https://solscan.io/tx/${signature}?cluster=devnet`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 text-xs text-bid font-mono underline truncate block"
-          >
-            {signature.slice(0, 16)}... view on solscan
-          </a>
-        )}
 
         <div className="mt-auto pt-4 border-t border-border space-y-0">
           {tab === 'market' && (
@@ -169,23 +206,34 @@ export default function OrderForm() {
           <div className="space-y-2.5 text-xs font-mono">
             <div className="flex justify-between">
               <span className="text-muted font-sans">Order Value</span>
-              <span className="text-primary">{sizeVal ? `$${parseFloat(sizeVal).toFixed(2)}` : '$0.00'}</span>
+              <span className="text-primary">{orderValueUSD > 0 ? `$${fp(orderValueUSD)}` : '$0.00'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted font-sans">{tab === 'market' ? 'Est. Fill Price' : 'Limit Price'}</span>
-              <span className="text-primary">—</span>
+              <span className="text-primary">
+                {tab === 'market'
+                  ? estFillBid && estFillAsk
+                    ? `$${fp(estFillBid)} / $${fp(estFillAsk)}`
+                    : midPrice
+                      ? `$${fp(midPrice)}`
+                      : '—'
+                  : limitPriceVal
+                    ? `$${fp(parseFloat(limitPriceVal))}`
+                    : '—'
+                }
+              </span>
             </div>
             {tab === 'market' && (
               <div className="flex justify-between">
-                <span className="text-muted font-sans">Price Impact</span>
-                <span className="text-bid">{'< 0.01%'}</span>
+                <span className="text-muted font-sans">Slippage</span>
+                <span className="text-bid">{slippagePct}%</span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-muted font-sans">{tab === 'market' ? 'Taker Fee (0.25%)' : 'Maker Fee (0.10%)'}</span>
               <span className="text-primary">
-                {sizeVal
-                  ? `$${(parseFloat(sizeVal) * (tab === 'market' ? 0.0025 : 0.001)).toFixed(4)}`
+                {orderValueUSD > 0
+                  ? `$${(tab === 'market' ? feeUSD : makerFeeUSD).toFixed(4)}`
                   : '$0.00'}
               </span>
             </div>
@@ -196,14 +244,16 @@ export default function OrderForm() {
             {tab === 'market' && (
               <div className="flex justify-between">
                 <span className="text-muted font-sans">Min Received</span>
-                <span className="text-primary">—</span>
+                <span className="text-primary">
+                  {sizeInSol > 0 ? `${(sizeInSol * (1 - slippagePct / 100)).toFixed(4)} SOL` : '—'}
+                </span>
               </div>
             )}
             <div className="flex justify-between pt-2 border-t border-border">
               <span className="text-muted font-sans font-semibold">Total Cost</span>
               <span className="text-primary font-semibold">
-                {sizeVal
-                  ? `$${(parseFloat(sizeVal) + parseFloat(sizeVal) * (tab === 'market' ? 0.0025 : 0.001) + 0.01).toFixed(2)}`
+                {orderValueUSD > 0
+                  ? `$${fp(orderValueUSD + (tab === 'market' ? feeUSD : makerFeeUSD) + 0.01)}`
                   : '$0.00'}
               </span>
             </div>

@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useOrderbook } from "@/app/hooks/useOrderbook";
+
+const PRICE_SCALE = 1_000_000;
+const SIZE_SCALE = 1_000_000_000;
 
 const fp = (n: number) =>
   new Intl.NumberFormat("en-US", {
@@ -9,22 +13,17 @@ const fp = (n: number) =>
   }).format(n);
 
 const fs_ = (n: number) => {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(2) + "K";
-  return n.toString();
+  if (n >= 0.001) return n.toFixed(4);
+  return n.toPrecision(2);
 };
 
 interface PriceLevel {
+  rawPrice: number;
   price: number;
   size: number;
   sum: number;
   flash?: "up" | "down" | null;
-}
-
-interface OrderbookData {
-  asks: { price: number; size: number }[];
-  bids: { price: number; size: number }[];
-  mid: number | null;
 }
 
 const OrderRow = ({
@@ -72,72 +71,52 @@ const OrderRow = ({
 };
 
 export default function OrderBook() {
-  const [data, setData] = useState<OrderbookData>({
-    asks: [],
-    bids: [],
-    mid: null,
-  });
+  const ob = useOrderbook();
   const prevRef = useRef<Map<number, number>>(new Map());
-  const [flashMap, setFlashMap] = useState<Map<number, "up" | "down">>(
-    new Map(),
-  );
+  const [flashMap, setFlashMap] = useState<Map<number, "up" | "down">>(new Map());
 
   useEffect(() => {
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/orderbook");
-        console.log("res++++++++++++++", res);
-        if (!res.ok || cancelled) return;
-        const json: OrderbookData = await res.json();
-        console.log("json++++++", json);
-
-        const newFlash = new Map<number, "up" | "down">();
-        const allLevels = [...json.asks, ...json.bids];
-        for (const { price, size } of allLevels) {
-          const prev = prevRef.current.get(price);
-          if (prev !== undefined && prev !== size) {
-            newFlash.set(price, size > prev ? "up" : "down");
-          }
-        }
-
-        const nextPrev = new Map<number, number>();
-        for (const { price, size } of allLevels) nextPrev.set(price, size);
-        prevRef.current = nextPrev;
-
-        if (!cancelled) {
-          setData(json);
-          if (newFlash.size > 0) {
-            setFlashMap(newFlash);
-            setTimeout(() => setFlashMap(new Map()), 400);
-          }
-        }
-      } catch {
+    const allLevels = [...ob.asks, ...ob.bids];
+    const newFlash = new Map<number, "up" | "down">();
+    for (const { price, size } of allLevels) {
+      const prev = prevRef.current.get(price);
+      if (prev !== undefined && prev !== size) {
+        newFlash.set(price, size > prev ? "up" : "down");
       }
-    };
-
-    poll();
-    const id = setInterval(poll, 2000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+    }
+    const nextPrev = new Map<number, number>();
+    for (const { price, size } of allLevels) nextPrev.set(price, size);
+    prevRef.current = nextPrev;
+    if (newFlash.size > 0) {
+      setFlashMap(newFlash);
+      setTimeout(() => setFlashMap(new Map()), 400);
+    }
+  }, [ob]);
 
   let cumAsk = 0;
-  const askLevels: PriceLevel[] = [...data.asks]
+  const askLevels: PriceLevel[] = [...ob.asks]
     .map((a) => {
-      cumAsk += a.size;
-      return { ...a, sum: cumAsk };
+      cumAsk += a.size / SIZE_SCALE;
+      return {
+        rawPrice: a.price,
+        price: a.price / PRICE_SCALE,
+        size: a.size / SIZE_SCALE,
+        sum: cumAsk,
+      };
     })
     .reverse()
-    .map((a) => ({ ...a, flash: flashMap.get(a.price) ?? null }));
+    .map((a) => ({ ...a, flash: flashMap.get(a.rawPrice) ?? null }));
 
   let cumBid = 0;
-  const bidLevels: PriceLevel[] = data.bids.map((b) => {
-    cumBid += b.size;
-    return { ...b, sum: cumBid, flash: flashMap.get(b.price) ?? null };
+  const bidLevels: PriceLevel[] = ob.bids.map((b) => {
+    cumBid += b.size / SIZE_SCALE;
+    return {
+      rawPrice: b.price,
+      price: b.price / PRICE_SCALE,
+      size: b.size / SIZE_SCALE,
+      sum: cumBid,
+      flash: flashMap.get(b.price) ?? null,
+    };
   });
 
   const maxSum = Math.max(
@@ -145,17 +124,19 @@ export default function OrderBook() {
     bidLevels.length ? bidLevels[bidLevels.length - 1].sum : 0,
   );
 
-  const totalBid = data.bids.reduce((s, l) => s + l.size, 0);
-  const totalAsk = data.asks.reduce((s, l) => s + l.size, 0);
+  const totalBid = bidLevels.reduce((s, l) => s + l.size, 0);
+  const totalAsk = askLevels.reduce((s, l) => s + l.size, 0);
   const total = totalBid + totalAsk;
   const bidPct = total > 0 ? Math.round((totalBid / total) * 100) : 50;
   const askPct = 100 - bidPct;
 
-  const mid = data.mid ?? 0;
-  const bestAsk = data.asks[0]?.price ?? null;
-  const bestBid = data.bids[0]?.price ?? null;
+  const mid = ob.mid ? ob.mid / PRICE_SCALE : 0;
+  const bestAsk = ob.asks[0] ? ob.asks[0].price / PRICE_SCALE : null;
+  const bestBid = ob.bids[0] ? ob.bids[0].price / PRICE_SCALE : null;
   const spread =
-    bestAsk !== null && bestBid !== null ? bestAsk - bestBid : null;
+    bestAsk !== null && bestBid !== null
+      ? (bestAsk - bestBid).toFixed(2)
+      : null;
 
   return (
     <div className="flex flex-col h-full overflow-hidden w-full bg-background transition-colors">
@@ -202,16 +183,16 @@ export default function OrderBook() {
       </div>
 
       <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted">
-        <div className="w-1/3 text-left">Price</div>
-        <div className="w-1/3 text-right">Size</div>
-        <div className="w-1/3 text-right">Total</div>
+        <div className="w-1/3 text-left">Price (USD)</div>
+        <div className="w-1/3 text-right">Size (SOL)</div>
+        <div className="w-1/3 text-right">Total (SOL)</div>
       </div>
 
       <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
         <div className="flex flex-col">
           {askLevels.map((a, i) => (
             <OrderRow
-              key={`ask-${i}-${a.price}`}
+              key={`ask-${i}-${a.rawPrice}`}
               price={a.price}
               size={a.size}
               sum={a.sum}
@@ -238,7 +219,7 @@ export default function OrderBook() {
         <div className="flex flex-col">
           {bidLevels.map((b, i) => (
             <OrderRow
-              key={`bid-${i}-${b.price}`}
+              key={`bid-${i}-${b.rawPrice}`}
               price={b.price}
               size={b.size}
               sum={b.sum}
@@ -249,7 +230,7 @@ export default function OrderBook() {
           ))}
         </div>
 
-        {data.asks.length === 0 && data.bids.length === 0 && (
+        {ob.asks.length === 0 && ob.bids.length === 0 && (
           <div className="text-center text-muted text-xs py-4">No orders</div>
         )}
       </div>
