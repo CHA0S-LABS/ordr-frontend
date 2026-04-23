@@ -13,3 +13,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ trades: [] }, { status: 200 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const res = await fetch(`${BACKEND}/trades`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    return NextResponse.json(await res.json());
+  } catch {
+    return NextResponse.json({ error: "failed" }, { status: 500 });
+  }
+}

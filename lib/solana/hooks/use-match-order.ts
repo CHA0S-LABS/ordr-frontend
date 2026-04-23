@@ -92,8 +92,6 @@ export function useMatchOrder() {
         duration: 6000,
       });
       setState({ loading: false, error: friendly, signature: null });
-
-      console.log("error:", raw);
     }
   }
 

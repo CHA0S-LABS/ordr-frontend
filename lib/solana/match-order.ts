@@ -83,7 +83,7 @@ export async function matchOrder(
     throw new Error(`Backend error: ${err}`);
   }
 
-  const { transaction: base64Tx } = await res.json();
+  const { transaction: base64Tx, price: fillPrice, size: fillSize, side: fillSide } = await res.json();
 
   if (!base64Tx)
     throw new Error(
@@ -103,9 +103,19 @@ export async function matchOrder(
   if (signature !== knownSig) {
     // different sig means it wasn't the "already processed" path — confirm normally
     await CONNECTION.confirmTransaction(signature, "confirmed");
-  } else {
-    // already on-chain, no need to confirm
   }
+
+  // Record trade only after on-chain confirmation
+  await fetch("/api/trades", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      price: fillPrice,
+      size: fillSize,
+      side: fillSide,
+      taker: wallet.publicKey.toBase58(),
+    }),
+  });
 
   return { signature: signature === knownSig ? knownSig! : signature };
 }
