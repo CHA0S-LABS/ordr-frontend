@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import OrderBook from './components/OrderBook';
 import OrderForm from './components/OrderForm';
+import BottomPanel from './components/BottomPanel';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Menu, X } from 'lucide-react';
 import { useBinanceTicker } from './hooks/useBinanceTicker';
@@ -30,7 +31,8 @@ function TickerStripItem({ pair, active, onClick }: { pair: { label: string; bin
   );
 }
 
-const BOTTOM_TABS = ['Open Orders', 'Balances', 'Order History', 'Trade History'];
+const BOTTOM_TABS = ['Open Orders', 'Balances', 'Order History', 'Trade History'] as const;
+type BottomTab = typeof BOTTOM_TABS[number];
 
 const PAIRS = [
   { label: 'SOL-USD', symbol: 'BINANCE:SOLUSDT', binanceSymbol: 'SOLUSDT' },
@@ -42,7 +44,7 @@ const HEADER_H = 92;
 const BOTTOM_H = 40;
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<string>(BOTTOM_TABS[0]);
+  const [activeTab, setActiveTab] = useState<BottomTab>(BOTTOM_TABS[0]);
   const [mobileView, setMobileView] = useState<'order' | 'charts'>('order');
   const [activePair, setActivePair] = useState(PAIRS[0]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -204,21 +206,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="hidden lg:block">
-        <div className="min-h-[260px] border-t border-border bg-surface flex items-center justify-center pb-10">
-          <span className="text-muted text-xs">Nothing here yet.</span>
-        </div>
-        <div className="sticky bottom-0 z-50 w-full h-10 border-t border-border bg-surface flex items-center px-4 space-x-6 text-sm">
-          {BOTTOM_TABS.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`h-full border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? 'text-primary border-primary font-medium' : 'text-muted hover:text-primary border-transparent'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+      <div className="hidden lg:block border-t border-border bg-surface" style={{ height: 260 }}>
+        <BottomPanel activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
     </main>
   );
