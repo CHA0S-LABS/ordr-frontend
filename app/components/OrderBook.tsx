@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useOrderbook } from "@/app/hooks/useOrderbook";
+import { useRecentTrades } from "@/app/hooks/useRecentTrades";
 
 const PRICE_SCALE = 1_000_000;
 const SIZE_SCALE = 1_000_000_000;
@@ -70,7 +71,47 @@ const OrderRow = ({
   );
 };
 
+const PRICE_SCALE_T = 1_000_000;
+const SIZE_SCALE_T = 1_000_000_000;
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function RecentTradesPanel() {
+  const trades = useRecentTrades();
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted shrink-0">
+        <div className="w-1/3 text-left">Price (USD)</div>
+        <div className="w-1/3 text-right">Size (SOL)</div>
+        <div className="w-1/3 text-right">Time</div>
+      </div>
+      <div className="flex-1 overflow-y-auto hide-scrollbar">
+        {trades.length === 0 && (
+          <div className="text-center text-muted text-xs py-8">No trades yet</div>
+        )}
+        {trades.map((t) => (
+          <div key={t.id} className="flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums hover:bg-surface-hover">
+            <div className={`w-1/3 text-left ${t.side === "bid" ? "text-bid" : "text-ask"}`}>
+              {fp(t.price / PRICE_SCALE_T)}
+            </div>
+            <div className="w-1/3 text-right text-primary">
+              {(t.size / SIZE_SCALE_T).toFixed(4)}
+            </div>
+            <div className="w-1/3 text-right text-muted">
+              {formatTime(t.created_at)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function OrderBook() {
+  const [tab, setTab] = useState<"book" | "trades">("book");
   const ob = useOrderbook();
   const prevRef = useRef<Map<number, number>>(new Map());
   const [flashMap, setFlashMap] = useState<Map<number, "up" | "down">>(new Map());
@@ -141,116 +182,100 @@ export default function OrderBook() {
   return (
     <div className="flex flex-col h-full overflow-hidden w-full bg-background transition-colors">
       <div className="h-16 flex items-end border-b border-border px-2 lg:px-4">
-        <button className="text-primary font-sans font-medium text-sm pb-2 border-b-2 border-primary mr-6">
+        <button
+          onClick={() => setTab("book")}
+          className={`font-sans text-sm pb-2 border-b-2 mr-6 transition-colors ${tab === "book" ? "text-primary font-medium border-primary" : "text-muted border-transparent hover:text-primary"}`}
+        >
           Book
         </button>
-        <button className="text-muted hover:text-primary font-sans text-sm pb-2 border-b-2 border-transparent">
+        <button
+          onClick={() => setTab("trades")}
+          className={`font-sans text-sm pb-2 border-b-2 transition-colors ${tab === "trades" ? "text-primary font-medium border-primary" : "text-muted border-transparent hover:text-primary"}`}
+        >
           Trades
         </button>
       </div>
 
-      <div className="flex justify-between items-center px-2 lg:px-4 py-2 border-b border-border">
-        <div className="flex space-x-2.5">
-          <button className="flex flex-col space-y-0.5 w-4 h-4 justify-center items-center hover:opacity-80">
-            <div className="w-3.5 h-1 bg-none border-b-2 border-ask" />
-            <div className="w-3.5 h-1 bg-none border-b-2 border-bid" />
-          </button>
-          <button className="w-4 h-4 flex items-center justify-center hover:opacity-80">
-            <div className="w-3.5 h-[5px] bg-bid" />
-          </button>
-          <button className="w-4 h-4 flex items-center justify-center hover:opacity-80">
-            <div className="w-3.5 h-[5px] bg-ask" />
-          </button>
+      {tab === "trades" && (
+        <div className="flex-1 overflow-hidden">
+          <RecentTradesPanel />
         </div>
-        <div className="text-xs flex items-center space-x-1 cursor-pointer">
-          <span className="font-semibold text-primary">USD</span>
-          <span className="text-muted">|</span>
-          <span className="text-primary">1</span>
-          <svg
-            className="w-3.5 h-3.5 text-muted ml-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </div>
-      </div>
+      )}
 
-      <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted">
-        <div className="w-1/3 text-left">Price (USD)</div>
-        <div className="w-1/3 text-right">Size (SOL)</div>
-        <div className="w-1/3 text-right">Total (SOL)</div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
-        <div className="flex flex-col">
-          {askLevels.map((a, i) => (
-            <OrderRow
-              key={`ask-${i}-${a.rawPrice}`}
-              price={a.price}
-              size={a.size}
-              sum={a.sum}
-              type="ask"
-              maxSum={maxSum}
-              flash={a.flash}
-            />
-          ))}
-        </div>
-
-        <div className="py-2 flex items-center px-2 lg:px-4 my-1">
-          <div className="text-bid text-lg font-mono flex items-center mr-3 font-semibold">
-            {mid > 0 ? fp(mid) : "—"}
-            <span className="ml-1 text-base font-bold">↑</span>
+      {tab === "book" && (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex justify-between items-center px-2 lg:px-4 py-2 border-b border-border">
+            <div className="flex space-x-2.5">
+              <button className="flex flex-col space-y-0.5 w-4 h-4 justify-center items-center hover:opacity-80">
+                <div className="w-3.5 h-1 bg-none border-b-2 border-ask" />
+                <div className="w-3.5 h-1 bg-none border-b-2 border-bid" />
+              </button>
+              <button className="w-4 h-4 flex items-center justify-center hover:opacity-80">
+                <div className="w-3.5 h-[5px] bg-bid" />
+              </button>
+              <button className="w-4 h-4 flex items-center justify-center hover:opacity-80">
+                <div className="w-3.5 h-[5px] bg-ask" />
+              </button>
+            </div>
+            <div className="text-xs flex items-center space-x-1 cursor-pointer">
+              <span className="font-semibold text-primary">USD</span>
+              <span className="text-muted">|</span>
+              <span className="text-primary">1</span>
+              <svg className="w-3.5 h-3.5 text-muted ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
-          <div className="text-xs text-primary font-sans mr-auto">
-            {mid > 0 ? `$${fp(mid)}` : ""}
+
+          <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted">
+            <div className="w-1/3 text-left">Price (USD)</div>
+            <div className="w-1/3 text-right">Size (SOL)</div>
+            <div className="w-1/3 text-right">Total (SOL)</div>
           </div>
-          {spread !== null && (
-            <div className="text-xs text-muted font-mono">spread {spread}</div>
-          )}
-        </div>
 
-        <div className="flex flex-col">
-          {bidLevels.map((b, i) => (
-            <OrderRow
-              key={`bid-${i}-${b.rawPrice}`}
-              price={b.price}
-              size={b.size}
-              sum={b.sum}
-              type="bid"
-              maxSum={maxSum}
-              flash={b.flash}
-            />
-          ))}
-        </div>
+          <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
+            <div className="flex flex-col">
+              {askLevels.map((a, i) => (
+                <OrderRow key={`ask-${i}-${a.rawPrice}`} price={a.price} size={a.size} sum={a.sum} type="ask" maxSum={maxSum} flash={a.flash} />
+              ))}
+            </div>
 
-        {ob.asks.length === 0 && ob.bids.length === 0 && (
-          <div className="text-center text-muted text-xs py-4">No orders</div>
-        )}
-      </div>
+            <div className="py-2 flex items-center px-2 lg:px-4 my-1">
+              <div className="text-bid text-lg font-mono flex items-center mr-3 font-semibold">
+                {mid > 0 ? fp(mid) : "—"}
+                <span className="ml-1 text-base font-bold">↑</span>
+              </div>
+              <div className="text-xs text-primary font-sans mr-auto">
+                {mid > 0 ? `$${fp(mid)}` : ""}
+              </div>
+              {spread !== null && (
+                <div className="text-xs text-muted font-mono">spread {spread}</div>
+              )}
+            </div>
 
-      <div className="px-2 lg:px-4 py-3 mt-auto border-t border-border flex flex-col justify-center shrink-0">
-        <div className="flex justify-between text-xs font-mono mb-1">
-          <span className="text-bid font-medium">Buy {bidPct}%</span>
-          <span className="text-ask font-medium">{askPct}% Sell</span>
+            <div className="flex flex-col">
+              {bidLevels.map((b, i) => (
+                <OrderRow key={`bid-${i}-${b.rawPrice}`} price={b.price} size={b.size} sum={b.sum} type="bid" maxSum={maxSum} flash={b.flash} />
+              ))}
+            </div>
+
+            {ob.asks.length === 0 && ob.bids.length === 0 && (
+              <div className="text-center text-muted text-xs py-4">No orders</div>
+            )}
+          </div>
+
+          <div className="px-2 lg:px-4 py-3 mt-auto border-t border-border flex flex-col justify-center shrink-0">
+            <div className="flex justify-between text-xs font-mono mb-1">
+              <span className="text-bid font-medium">Buy {bidPct}%</span>
+              <span className="text-ask font-medium">{askPct}% Sell</span>
+            </div>
+            <div className="w-full h-1.5 flex rounded-sm overflow-hidden bg-surface">
+              <div className="h-full bg-bid transition-all duration-500" style={{ width: `${bidPct}%` }} />
+              <div className="h-full bg-ask opacity-80 transition-all duration-500" style={{ width: `${askPct}%` }} />
+            </div>
+          </div>
         </div>
-        <div className="w-full h-1.5 flex rounded-sm overflow-hidden bg-surface">
-          <div
-            className="h-full bg-bid transition-all duration-500"
-            style={{ width: `${bidPct}%` }}
-          />
-          <div
-            className="h-full bg-ask opacity-80 transition-all duration-500"
-            style={{ width: `${askPct}%` }}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
