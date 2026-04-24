@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { subscribeWs } from "@/lib/ws-client";
 
 export interface Trade {
   id: number;
@@ -11,31 +12,27 @@ export interface Trade {
   created_at: string;
 }
 
-const POLL_MS = 3000;
-
 export function useRecentTrades(): Trade[] {
   const [trades, setTrades] = useState<Trade[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
+    // Seed with HTTP fetch
+    fetch("/api/trades")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => { if (json?.trades) setTrades(json.trades); })
+      .catch(() => {});
 
-    async function fetch() {
-      try {
-        const res = await window.fetch("/api/trades");
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!cancelled && Array.isArray(json.trades)) {
-          setTrades(json.trades);
-        }
-      } catch {}
-    }
+    const unsub = subscribeWs((msg) => {
+      if (msg.type === "trade") {
+        setTrades((prev) => {
+          // Prepend new trade, keep max 50
+          const next = [msg.data as Trade, ...prev];
+          return next.slice(0, 50);
+        });
+      }
+    });
 
-    fetch();
-    const id = setInterval(fetch, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    return unsub;
   }, []);
 
   return trades;
