@@ -1,9 +1,6 @@
 import { Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
-import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddress,
-} from "@solana/spl-token";
+import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 import { getTakerATAs } from "./token";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 import { CONNECTION, BASE_MINT, QUOTE_MINT } from "../chain-config";
@@ -21,11 +18,14 @@ export interface MatchOrderResult {
   signature: string;
 }
 
-export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderResult> {
+export async function matchOrder(
+  params: MatchOrderParams,
+): Promise<MatchOrderResult> {
   const { side, size, limitPrice, wallet } = params;
 
   if (!wallet.publicKey) throw new Error("Wallet not connected");
-  if (!wallet.signTransaction) throw new Error("Wallet does not support signing");
+  if (!wallet.signTransaction)
+    throw new Error("Wallet does not support signing");
 
   const { baseAta, quoteAta } = await getTakerATAs(wallet.publicKey);
 
@@ -36,14 +36,24 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
 
   const setupIxs = [];
   if (!baseInfo) {
-    setupIxs.push(createAssociatedTokenAccountInstruction(
-      wallet.publicKey, baseAta, wallet.publicKey, BASE_MINT
-    ));
+    setupIxs.push(
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        baseAta,
+        wallet.publicKey,
+        BASE_MINT,
+      ),
+    );
   }
   if (!quoteInfo) {
-    setupIxs.push(createAssociatedTokenAccountInstruction(
-      wallet.publicKey, quoteAta, wallet.publicKey, QUOTE_MINT
-    ));
+    setupIxs.push(
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        quoteAta,
+        wallet.publicKey,
+        QUOTE_MINT,
+      ),
+    );
   }
 
   if (setupIxs.length > 0) {
@@ -73,9 +83,12 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
     throw new Error(`Backend error: ${err}`);
   }
 
-  const { transaction: base64Tx } = await res.json();
+  const { transaction: base64Tx, price: fillPrice, size: fillSize, side: fillSide } = await res.json();
 
-  if (!base64Tx) throw new Error("No transaction returned — no liquidity or price outside limit");
+  if (!base64Tx)
+    throw new Error(
+      "No transaction returned — no liquidity or price outside limit",
+    );
 
   const txBytes = Buffer.from(base64Tx, "base64");
   const tx = Transaction.from(txBytes);
@@ -90,19 +103,35 @@ export async function matchOrder(params: MatchOrderParams): Promise<MatchOrderRe
   if (signature !== knownSig) {
     // different sig means it wasn't the "already processed" path — confirm normally
     await CONNECTION.confirmTransaction(signature, "confirmed");
-  } else {
-    // already on-chain, no need to confirm
   }
+
+  // Record trade only after on-chain confirmation
+  await fetch("/api/trades", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      price: fillPrice,
+      size: fillSize,
+      side: fillSide,
+      taker: wallet.publicKey.toBase58(),
+    }),
+  });
 
   return { signature: signature === knownSig ? knownSig! : signature };
 }
 
-async function sendWithRetry(rawTx: Buffer | Uint8Array, fallbackSig?: string | null): Promise<string> {
+async function sendWithRetry(
+  rawTx: Buffer | Uint8Array,
+  fallbackSig?: string | null,
+): Promise<string> {
   try {
     return await CONNECTION.sendRawTransaction(rawTx, { skipPreflight: false });
   } catch (e: any) {
     const msg: string = e?.message ?? "";
-    if (msg.includes("already been processed") || msg.includes("AlreadyProcessed")) {
+    if (
+      msg.includes("already been processed") ||
+      msg.includes("AlreadyProcessed")
+    ) {
       // tx already landed — use the sig we computed from the signed bytes
       const match = msg.match(/([1-9A-HJ-NP-Za-km-z]{87,88})/);
       if (match) return match[1];
