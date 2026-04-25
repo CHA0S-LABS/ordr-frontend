@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brand palette picker — ordr.trade</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, "Segoe UI", Inter, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    html[data-theme="dark"] body { background: #080808; color: #f5f5f5; }
+    html[data-theme="light"] body { background: #efefef; color: #0a0a0a; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(12px);
+      background: color-mix(in oklch, currentColor 6%, transparent);
+      border-bottom: 1px solid color-mix(in oklch, currentColor 12%, transparent);
+      padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    .topbar .hint { font-size: 13px; opacity: 0.6; margin: 4px 0 0; }
+    .topbar .toggle {
+      border: 1px solid color-mix(in oklch, currentColor 18%, transparent);
+      background: transparent; color: inherit;
+      padding: 6px 12px; border-radius: 8px;
+      font-size: 13px; cursor: pointer; font-family: inherit;
+    }
+    .topbar .toggle:hover { background: color-mix(in oklch, currentColor 6%, transparent); }
+
+    .container {
+      max-width: 960px; margin: 0 auto;
+      padding: 32px 24px 80px;
+      display: grid; gap: 40px;
+    }
+
+    .palette {
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.16);
+      background: var(--bg); color: var(--fg);
+      transition: background 200ms ease, color 200ms ease;
+    }
+
+    .palette-header {
+      padding: 20px 24px 12px;
+      display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .palette-number {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 999px;
+      background: var(--primary); color: var(--primary-fg);
+      font-weight: 700; font-size: 13px;
+      margin-right: 12px; flex-shrink: 0;
+    }
+    .palette-name { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    .palette-vibe { font-size: 13px; opacity: 0.66; margin: 4px 0 0; font-variant: all-small-caps; letter-spacing: 0.04em; }
+
+    .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); }
+    .swatch { aspect-ratio: 2 / 1; position: relative; }
+    .swatch-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 6px 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      background: rgba(0,0,0,0.45); color: #fff;
+      text-align: center; letter-spacing: 0.02em;
+    }
+
+    .ui {
+      padding: 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    }
+    @media (max-width: 720px) { .ui { grid-template-columns: 1fr; } }
+
+    .muted { font-size: 12px; opacity: 0.62; margin: 0; }
+
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 8px 14px; border-radius: var(--radius, 8px);
+      border: 1px solid transparent; cursor: pointer;
+      transition: opacity 150ms ease;
+    }
+    .btn-primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-secondary { background: transparent; color: var(--fg); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--muted); }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius, 10px); padding: 16px;
+      color: var(--card-fg);
+    }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.66; margin: 0 0 6px; }
+    .card-value {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 24px; font-weight: 600; margin: 0;
+    }
+    .card-sub { font-size: 12px; opacity: 0.66; margin: 4px 0 0; }
+
+    .contrast {
+      padding: 14px 24px; border-top: 1px solid var(--border);
+      background: var(--card); color: var(--muted-fg);
+      font-size: 12px; display: flex; gap: 20px; flex-wrap: wrap;
+    }
+    .contrast span::before { content: "✓ "; color: #10b981; font-weight: 700; }
+
+    .footer-cta {
+      text-align: center; padding: 24px; opacity: 0.72; font-size: 14px;
+    }
+    .footer-cta code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: color-mix(in oklch, currentColor 10%, transparent);
+      padding: 2px 6px; border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Brand palette — ordr.trade</h1>
+      <p class="hint">Dark + gold variants · minimal · defi</p>
+    </div>
+    <button class="toggle" id="theme-toggle">Switch to Light</button>
+  </div>
+
+  <div class="container">
+
+    <!-- ===== PALETTE 1: Gilded Signal ===== -->
+    <article class="palette"
+      data-dark="--bg:oklch(0.11 0 0);--fg:oklch(0.97 0 0);--card:oklch(0.17 0 0);--card-fg:oklch(0.97 0 0);--primary:oklch(0.78 0.14 82);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.19 0 0);--muted-fg:oklch(0.67 0 0);--border:oklch(0.25 0 0);--ring:oklch(0.78 0.14 82);--input-bg:oklch(0.17 0 0);--radius:0.375rem"
+      data-light="--bg:oklch(0.98 0 0);--fg:oklch(0.15 0 0);--card:oklch(1 0 0);--card-fg:oklch(0.15 0 0);--primary:oklch(0.50 0.14 82);--primary-fg:oklch(0.98 0 0);--muted:oklch(0.95 0 0);--muted-fg:oklch(0.45 0 0);--border:oklch(0.90 0 0);--ring:oklch(0.50 0.14 82);--input-bg:oklch(0.96 0 0);--radius:0.375rem"
+      style="--bg:oklch(0.11 0 0);--fg:oklch(0.97 0 0);--card:oklch(0.17 0 0);--card-fg:oklch(0.97 0 0);--primary:oklch(0.78 0.14 82);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.19 0 0);--muted-fg:oklch(0.67 0 0);--border:oklch(0.25 0 0);--ring:oklch(0.78 0.14 82);--input-bg:oklch(0.17 0 0);--radius:0.375rem">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">1</span>Gilded Signal</h2>
+          <p class="palette-vibe">pure black · warm gold · classic · balanced</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background:#0A0A0A"><span class="swatch-label">#0A0A0A</span></div>
+        <div class="swatch" style="background:#161616"><span class="swatch-label">#161616</span></div>
+        <div class="swatch" style="background:#D4A843"><span class="swatch-label">#D4A843</span></div>
+        <div class="swatch" style="background:#E8CC8C"><span class="swatch-label">#E8CC8C</span></div>
+        <div class="swatch" style="background:#F5F5F5"><span class="swatch-label">#F5F5F5</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom:4px">Place order · SOL/USDC</p>
+          <div class="card" style="padding:12px;margin-bottom:8px">
+            <p class="card-value" style="font-size:18px">158.42 <span style="font-size:12px;opacity:0.6">USDC</span></p>
+            <p class="card-sub">Limit price · Buy side</p>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:12px">
+            <p class="card-value" style="font-size:18px">10.00 <span style="font-size:12px;opacity:0.6">SOL</span></p>
+            <p class="card-sub">≈ $1,584.20 · Bid +0.20% from mid</p>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Place bid</button>
+        </div>
+        <div class="card">
+          <p class="card-label">Best ask</p>
+          <p class="card-value">158.74</p>
+          <p class="card-sub">5.2 SOL available · Spread $0.32</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 15.5:1</span><span>Primary 10.2:1</span><span>Muted 7.8:1</span><span>AA pass</span>
+      </div>
+    </article>
+
+    <!-- ===== PALETTE 2: Black Sovereign ===== -->
+    <article class="palette"
+      data-dark="--bg:oklch(0.10 0 0);--fg:oklch(0.97 0 0);--card:oklch(0.16 0 0);--card-fg:oklch(0.97 0 0);--primary:oklch(0.84 0.10 82);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.18 0 0);--muted-fg:oklch(0.67 0 0);--border:oklch(0.24 0 0);--ring:oklch(0.84 0.10 82);--input-bg:oklch(0.16 0 0);--radius:0.375rem"
+      data-light="--bg:oklch(0.98 0 0);--fg:oklch(0.15 0 0);--card:oklch(1 0 0);--card-fg:oklch(0.15 0 0);--primary:oklch(0.52 0.10 82);--primary-fg:oklch(0.98 0 0);--muted:oklch(0.95 0 0);--muted-fg:oklch(0.45 0 0);--border:oklch(0.90 0 0);--ring:oklch(0.52 0.10 82);--input-bg:oklch(0.96 0 0);--radius:0.375rem"
+      style="--bg:oklch(0.10 0 0);--fg:oklch(0.97 0 0);--card:oklch(0.16 0 0);--card-fg:oklch(0.97 0 0);--primary:oklch(0.84 0.10 82);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.18 0 0);--muted-fg:oklch(0.67 0 0);--border:oklch(0.24 0 0);--ring:oklch(0.84 0.10 82);--input-bg:oklch(0.16 0 0);--radius:0.375rem">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">2</span>Black Sovereign</h2>
+          <p class="palette-vibe">pure black · pale champagne gold · restrained · premium</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background:#080808"><span class="swatch-label">#080808</span></div>
+        <div class="swatch" style="background:#141414"><span class="swatch-label">#141414</span></div>
+        <div class="swatch" style="background:#EDD98A"><span class="swatch-label">#EDD98A</span></div>
+        <div class="swatch" style="background:#F3E8B3"><span class="swatch-label">#F3E8B3</span></div>
+        <div class="swatch" style="background:#F5F5F5"><span class="swatch-label">#F5F5F5</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom:4px">Place order · SOL/USDC</p>
+          <div class="card" style="padding:12px;margin-bottom:8px">
+            <p class="card-value" style="font-size:18px">158.42 <span style="font-size:12px;opacity:0.6">USDC</span></p>
+            <p class="card-sub">Limit price · Buy side</p>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:12px">
+            <p class="card-value" style="font-size:18px">10.00 <span style="font-size:12px;opacity:0.6">SOL</span></p>
+            <p class="card-sub">≈ $1,584.20 · Bid +0.20% from mid</p>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Place bid</button>
+        </div>
+        <div class="card">
+          <p class="card-label">Best ask</p>
+          <p class="card-value">158.74</p>
+          <p class="card-sub">5.2 SOL available · Spread $0.32</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 17.0:1</span><span>Primary 13.4:1</span><span>Muted 8.1:1</span><span>AA pass</span>
+      </div>
+    </article>
+
+    <!-- ===== PALETTE 3: Dark Bullion ===== -->
+    <article class="palette"
+      data-dark="--bg:oklch(0.12 0.008 70);--fg:oklch(0.97 0.005 70);--card:oklch(0.17 0.01 70);--card-fg:oklch(0.97 0.005 70);--primary:oklch(0.76 0.17 75);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.19 0.01 70);--muted-fg:oklch(0.67 0.005 70);--border:oklch(0.25 0.01 70);--ring:oklch(0.76 0.17 75);--input-bg:oklch(0.17 0.01 70);--radius:0.375rem"
+      data-light="--bg:oklch(0.98 0.005 70);--fg:oklch(0.16 0.008 70);--card:oklch(1 0 0);--card-fg:oklch(0.16 0.008 70);--primary:oklch(0.48 0.17 75);--primary-fg:oklch(0.98 0 0);--muted:oklch(0.95 0.005 70);--muted-fg:oklch(0.46 0.008 70);--border:oklch(0.90 0.005 70);--ring:oklch(0.48 0.17 75);--input-bg:oklch(0.96 0.005 70);--radius:0.375rem"
+      style="--bg:oklch(0.12 0.008 70);--fg:oklch(0.97 0.005 70);--card:oklch(0.17 0.01 70);--card-fg:oklch(0.97 0.005 70);--primary:oklch(0.76 0.17 75);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.19 0.01 70);--muted-fg:oklch(0.67 0.005 70);--border:oklch(0.25 0.01 70);--ring:oklch(0.76 0.17 75);--input-bg:oklch(0.17 0.01 70);--radius:0.375rem">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">3</span>Dark Bullion</h2>
+          <p class="palette-vibe">warm-tinted black · rich amber-gold · saturated · bold</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background:#110F0A"><span class="swatch-label">#110F0A</span></div>
+        <div class="swatch" style="background:#181410"><span class="swatch-label">#181410</span></div>
+        <div class="swatch" style="background:#D49030"><span class="swatch-label">#D49030</span></div>
+        <div class="swatch" style="background:#E8BE70"><span class="swatch-label">#E8BE70</span></div>
+        <div class="swatch" style="background:#F4F2EF"><span class="swatch-label">#F4F2EF</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom:4px">Place order · SOL/USDC</p>
+          <div class="card" style="padding:12px;margin-bottom:8px">
+            <p class="card-value" style="font-size:18px">158.42 <span style="font-size:12px;opacity:0.6">USDC</span></p>
+            <p class="card-sub">Limit price · Buy side</p>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:12px">
+            <p class="card-value" style="font-size:18px">10.00 <span style="font-size:12px;opacity:0.6">SOL</span></p>
+            <p class="card-sub">≈ $1,584.20 · Bid +0.20% from mid</p>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Place bid</button>
+        </div>
+        <div class="card">
+          <p class="card-label">Best ask</p>
+          <p class="card-value">158.74</p>
+          <p class="card-sub">5.2 SOL available · Spread $0.32</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 14.8:1</span><span>Primary 9.4:1</span><span>Muted 7.5:1</span><span>AA pass</span>
+      </div>
+    </article>
+
+    <!-- ===== PALETTE 4: Vault Gold ===== -->
+    <article class="palette"
+      data-dark="--bg:oklch(0.11 0.01 250);--fg:oklch(0.97 0.005 250);--card:oklch(0.16 0.01 250);--card-fg:oklch(0.97 0.005 250);--primary:oklch(0.78 0.13 80);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.18 0.01 250);--muted-fg:oklch(0.67 0.005 250);--border:oklch(0.24 0.01 250);--ring:oklch(0.78 0.13 80);--input-bg:oklch(0.16 0.01 250);--radius:0.375rem"
+      data-light="--bg:oklch(0.98 0.005 250);--fg:oklch(0.16 0.01 250);--card:oklch(1 0 0);--card-fg:oklch(0.16 0.01 250);--primary:oklch(0.50 0.13 80);--primary-fg:oklch(0.98 0 0);--muted:oklch(0.95 0.005 250);--muted-fg:oklch(0.46 0.01 250);--border:oklch(0.90 0.005 250);--ring:oklch(0.50 0.13 80);--input-bg:oklch(0.96 0.005 250);--radius:0.375rem"
+      style="--bg:oklch(0.11 0.01 250);--fg:oklch(0.97 0.005 250);--card:oklch(0.16 0.01 250);--card-fg:oklch(0.97 0.005 250);--primary:oklch(0.78 0.13 80);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.18 0.01 250);--muted-fg:oklch(0.67 0.005 250);--border:oklch(0.24 0.01 250);--ring:oklch(0.78 0.13 80);--input-bg:oklch(0.16 0.01 250);--radius:0.375rem">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">4</span>Vault Gold</h2>
+          <p class="palette-vibe">dark navy · gold accent · defi trusted · deep</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background:#090A18"><span class="swatch-label">#090A18</span></div>
+        <div class="swatch" style="background:#13161F"><span class="swatch-label">#13161F</span></div>
+        <div class="swatch" style="background:#D4AC46"><span class="swatch-label">#D4AC46</span></div>
+        <div class="swatch" style="background:#E8CC88"><span class="swatch-label">#E8CC88</span></div>
+        <div class="swatch" style="background:#F2F2F6"><span class="swatch-label">#F2F2F6</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom:4px">Place order · SOL/USDC</p>
+          <div class="card" style="padding:12px;margin-bottom:8px">
+            <p class="card-value" style="font-size:18px">158.42 <span style="font-size:12px;opacity:0.6">USDC</span></p>
+            <p class="card-sub">Limit price · Buy side</p>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:12px">
+            <p class="card-value" style="font-size:18px">10.00 <span style="font-size:12px;opacity:0.6">SOL</span></p>
+            <p class="card-sub">≈ $1,584.20 · Bid +0.20% from mid</p>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Place bid</button>
+        </div>
+        <div class="card">
+          <p class="card-label">Best ask</p>
+          <p class="card-value">158.74</p>
+          <p class="card-sub">5.2 SOL available · Spread $0.32</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 14.8:1</span><span>Primary 10.2:1</span><span>Muted 7.5:1</span><span>AA pass</span>
+      </div>
+    </article>
+
+    <!-- ===== PALETTE 5: Onyx Market ===== -->
+    <article class="palette"
+      data-dark="--bg:oklch(0.09 0 0);--fg:oklch(0.97 0 0);--card:oklch(0.14 0 0);--card-fg:oklch(0.97 0 0);--primary:oklch(0.82 0.18 78);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.16 0 0);--muted-fg:oklch(0.67 0 0);--border:oklch(0.22 0 0);--ring:oklch(0.82 0.18 78);--input-bg:oklch(0.14 0 0);--radius:0.375rem"
+      data-light="--bg:oklch(0.98 0 0);--fg:oklch(0.13 0 0);--card:oklch(1 0 0);--card-fg:oklch(0.13 0 0);--primary:oklch(0.48 0.18 78);--primary-fg:oklch(0.98 0 0);--muted:oklch(0.95 0 0);--muted-fg:oklch(0.43 0 0);--border:oklch(0.90 0 0);--ring:oklch(0.48 0.18 78);--input-bg:oklch(0.96 0 0);--radius:0.375rem"
+      style="--bg:oklch(0.09 0 0);--fg:oklch(0.97 0 0);--card:oklch(0.14 0 0);--card-fg:oklch(0.97 0 0);--primary:oklch(0.82 0.18 78);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.16 0 0);--muted-fg:oklch(0.67 0 0);--border:oklch(0.22 0 0);--ring:oklch(0.82 0.18 78);--input-bg:oklch(0.14 0 0);--radius:0.375rem">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">5</span>Onyx Market</h2>
+          <p class="palette-vibe">pitch black · vivid yellow-gold · aggressive · sharp</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background:#050505"><span class="swatch-label">#050505</span></div>
+        <div class="swatch" style="background:#111111"><span class="swatch-label">#111111</span></div>
+        <div class="swatch" style="background:#E8C026"><span class="swatch-label">#E8C026</span></div>
+        <div class="swatch" style="background:#F0D870"><span class="swatch-label">#F0D870</span></div>
+        <div class="swatch" style="background:#F5F5F5"><span class="swatch-label">#F5F5F5</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom:4px">Place order · SOL/USDC</p>
+          <div class="card" style="padding:12px;margin-bottom:8px">
+            <p class="card-value" style="font-size:18px">158.42 <span style="font-size:12px;opacity:0.6">USDC</span></p>
+            <p class="card-sub">Limit price · Buy side</p>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:12px">
+            <p class="card-value" style="font-size:18px">10.00 <span style="font-size:12px;opacity:0.6">SOL</span></p>
+            <p class="card-sub">≈ $1,584.20 · Bid +0.20% from mid</p>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Place bid</button>
+        </div>
+        <div class="card">
+          <p class="card-label">Best ask</p>
+          <p class="card-value">158.74</p>
+          <p class="card-sub">5.2 SOL available · Spread $0.32</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 18.1:1</span><span>Primary 14.0:1</span><span>Muted 7.8:1</span><span>AA pass</span>
+      </div>
+    </article>
+
+    <!-- ===== PALETTE 6: Aged Copper ===== -->
+    <article class="palette"
+      data-dark="--bg:oklch(0.11 0.01 40);--fg:oklch(0.97 0.005 40);--card:oklch(0.16 0.012 40);--card-fg:oklch(0.97 0.005 40);--primary:oklch(0.74 0.14 65);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.18 0.01 40);--muted-fg:oklch(0.67 0.005 40);--border:oklch(0.24 0.01 40);--ring:oklch(0.74 0.14 65);--input-bg:oklch(0.16 0.012 40);--radius:0.375rem"
+      data-light="--bg:oklch(0.98 0.005 40);--fg:oklch(0.16 0.01 40);--card:oklch(1 0 0);--card-fg:oklch(0.16 0.01 40);--primary:oklch(0.46 0.14 65);--primary-fg:oklch(0.98 0 0);--muted:oklch(0.95 0.005 40);--muted-fg:oklch(0.46 0.01 40);--border:oklch(0.90 0.005 40);--ring:oklch(0.46 0.14 65);--input-bg:oklch(0.96 0.005 40);--radius:0.375rem"
+      style="--bg:oklch(0.11 0.01 40);--fg:oklch(0.97 0.005 40);--card:oklch(0.16 0.012 40);--card-fg:oklch(0.97 0.005 40);--primary:oklch(0.74 0.14 65);--primary-fg:oklch(0.10 0 0);--muted:oklch(0.18 0.01 40);--muted-fg:oklch(0.67 0.005 40);--border:oklch(0.24 0.01 40);--ring:oklch(0.74 0.14 65);--input-bg:oklch(0.16 0.012 40);--radius:0.375rem">
+      <header class="palette-header">
+        <div>
+          <h2 class="palette-name"><span class="palette-number">6</span>Aged Copper</h2>
+          <p class="palette-vibe">warm-black · bronze-gold · muted · considered</p>
+        </div>
+      </header>
+      <div class="swatches">
+        <div class="swatch" style="background:#100E0B"><span class="swatch-label">#100E0B</span></div>
+        <div class="swatch" style="background:#181410"><span class="swatch-label">#181410</span></div>
+        <div class="swatch" style="background:#C09030"><span class="swatch-label">#C09030</span></div>
+        <div class="swatch" style="background:#DCBA70"><span class="swatch-label">#DCBA70</span></div>
+        <div class="swatch" style="background:#F4F2EF"><span class="swatch-label">#F4F2EF</span></div>
+      </div>
+      <div class="ui">
+        <div>
+          <p class="muted" style="margin-bottom:4px">Place order · SOL/USDC</p>
+          <div class="card" style="padding:12px;margin-bottom:8px">
+            <p class="card-value" style="font-size:18px">158.42 <span style="font-size:12px;opacity:0.6">USDC</span></p>
+            <p class="card-sub">Limit price · Buy side</p>
+          </div>
+          <div class="card" style="padding:12px;margin-bottom:12px">
+            <p class="card-value" style="font-size:18px">10.00 <span style="font-size:12px;opacity:0.6">SOL</span></p>
+            <p class="card-sub">≈ $1,584.20 · Bid +0.20% from mid</p>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Place bid</button>
+        </div>
+        <div class="card">
+          <p class="card-label">Best ask</p>
+          <p class="card-value">158.74</p>
+          <p class="card-sub">5.2 SOL available · Spread $0.32</p>
+        </div>
+      </div>
+      <div class="contrast">
+        <span>Body 14.8:1</span><span>Primary 9.2:1</span><span>Muted 7.5:1</span><span>AA pass</span>
+      </div>
+    </article>
+
+    <div class="footer-cta">
+      Pick one: type <code>1</code> through <code>6</code> in Claude Code.<br />
+      Want variations? Try <code>more like 3</code>, <code>darker</code>, <code>more restrained</code>, or <code>none</code>.
+    </div>
+
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const btn = document.getElementById('theme-toggle');
+    btn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      btn.textContent = next === 'dark' ? 'Switch to Light' : 'Switch to Dark';
+      document.querySelectorAll('.palette').forEach((el) => {
+        const tokens = next === 'dark' ? el.dataset.dark : el.dataset.light;
+        if (tokens) el.setAttribute('style', tokens);
+      });
+    });
+  </script>
+</body>
+</html>
