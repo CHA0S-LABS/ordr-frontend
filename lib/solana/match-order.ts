@@ -1,4 +1,4 @@
-import { Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Transaction, SystemProgram } from "@solana/web3.js";
 import bs58 from "bs58";
 import {
   createAssociatedTokenAccountInstruction,
@@ -98,12 +98,11 @@ export async function matchOrder(
   const tx = Transaction.from(txBytes);
 
   if (side === "ask") {
-    const wrapLamports = Math.round(size * LAMPORTS_PER_SOL);
     tx.instructions.unshift(
       SystemProgram.transfer({
         fromPubkey: wallet.publicKey,
         toPubkey: baseAta,
-        lamports: wrapLamports,
+        lamports: size,
       }),
       createSyncNativeInstruction(baseAta),
     );
