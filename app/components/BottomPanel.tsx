@@ -3,7 +3,6 @@
 import React from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useTokenBalances } from "@/app/hooks/useTokenBalances";
-import { useMyOrders, orderPrice, orderSize, orderFilled } from "@/app/hooks/useMyOrders";
 import { useRecentTrades } from "@/app/hooks/useRecentTrades";
 
 const PRICE_SCALE = 1_000_000;
@@ -24,7 +23,7 @@ const TH = ({ children, right }: { children: React.ReactNode; right?: boolean })
 );
 
 const TD = ({ children, right, className }: { children: React.ReactNode; right?: boolean; className?: string }) => (
-  <td className={`py-1.5 px-3 text-xs font-mono whitespace-nowrap ${right ? "text-right" : "text-left"} ${className ?? "text-primary"}`}>
+  <td className={`py-1.5 px-3 text-xs font-mono whitespace-nowrap ${right ? "text-right" : "text-left"} ${className ?? "text-foreground"}`}>
     {children}
   </td>
 );
@@ -33,35 +32,11 @@ const Empty = ({ msg }: { msg: string }) => (
   <tr><td colSpan={99} className="text-center text-muted text-xs py-6">{msg}</td></tr>
 );
 
-function OpenOrders({ owner }: { owner: string | null }) {
-  const orders = useMyOrders(owner, false);
-  return (
-    <table className="w-full">
-      <thead className="border-b border-border sticky top-0 bg-surface">
-        <tr><TH>Side</TH><TH right>Price (USD)</TH><TH right>Size (SOL)</TH><TH right>Filled</TH><TH>Status</TH></tr>
-      </thead>
-      <tbody>
-        {!owner && <Empty msg="Connect wallet to view orders" />}
-        {owner && orders.length === 0 && <Empty msg="No open orders" />}
-        {orders.map(o => (
-          <tr key={o.order_id} className="border-b border-border/40 hover:bg-surface-hover">
-            <TD className={o.side === "bid" ? "text-bid" : "text-ask"}>{o.side === "bid" ? "Buy" : "Sell"}</TD>
-            <TD right>{fp(orderPrice(o))}</TD>
-            <TD right>{orderSize(o).toFixed(4)}</TD>
-            <TD right>{orderFilled(o).toFixed(4)}</TD>
-            <TD className="text-muted capitalize">{o.status}</TD>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 function Balances({ owner }: { owner: string | null }) {
   const { baseBalance, quoteBalance } = useTokenBalances();
   const rows = [
-    { token: "SOL (WSOL)", wallet: baseBalance !== null ? (baseBalance / SIZE_SCALE).toFixed(4) : "—", decimals: 9 },
-    { token: "USDC", wallet: quoteBalance !== null ? (quoteBalance / PRICE_SCALE).toFixed(2) : "—", decimals: 6 },
+    { token: "SOL (WSOL)", wallet: baseBalance !== null ? (baseBalance / SIZE_SCALE).toFixed(4) : "—" },
+    { token: "USDC", wallet: quoteBalance !== null ? (quoteBalance / PRICE_SCALE).toFixed(2) : "—" },
   ];
   return (
     <table className="w-full">
@@ -74,31 +49,6 @@ function Balances({ owner }: { owner: string | null }) {
           <tr key={r.token} className="border-b border-border/40 hover:bg-surface-hover">
             <TD>{r.token}</TD>
             <TD right>{r.wallet}</TD>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function OrderHistory({ owner }: { owner: string | null }) {
-  const orders = useMyOrders(owner, true);
-  const history = orders.filter(o => o.status === "filled" || o.status === "cancelled");
-  return (
-    <table className="w-full">
-      <thead className="border-b border-border sticky top-0 bg-surface">
-        <tr><TH>Side</TH><TH right>Price (USD)</TH><TH right>Size (SOL)</TH><TH right>Filled</TH><TH>Status</TH></tr>
-      </thead>
-      <tbody>
-        {!owner && <Empty msg="Connect wallet to view history" />}
-        {owner && history.length === 0 && <Empty msg="No order history" />}
-        {history.map(o => (
-          <tr key={o.order_id} className="border-b border-border/40 hover:bg-surface-hover">
-            <TD className={o.side === "bid" ? "text-bid" : "text-ask"}>{o.side === "bid" ? "Buy" : "Sell"}</TD>
-            <TD right>{fp(orderPrice(o))}</TD>
-            <TD right>{orderSize(o).toFixed(4)}</TD>
-            <TD right>{orderFilled(o).toFixed(4)}</TD>
-            <TD className="text-muted capitalize">{o.status}</TD>
           </tr>
         ))}
       </tbody>
@@ -130,12 +80,12 @@ function TradeHistory({ owner }: { owner: string | null }) {
   );
 }
 
-const TABS = ["Open Orders", "Balances", "Order History", "Trade History"] as const;
-type Tab = typeof TABS[number];
+const TABS = ["Balances", "Trade History"] as const;
+export type BottomTab = typeof TABS[number];
 
 export default function BottomPanel({ activeTab, onTabChange }: {
-  activeTab: Tab;
-  onTabChange: (t: Tab) => void;
+  activeTab: BottomTab;
+  onTabChange: (t: BottomTab) => void;
 }) {
   const { publicKey } = useWallet();
   const owner = publicKey?.toBase58() ?? null;
@@ -147,16 +97,14 @@ export default function BottomPanel({ activeTab, onTabChange }: {
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
-            className={`h-full border-b-2 text-sm transition-colors whitespace-nowrap ${activeTab === tab ? "text-primary border-primary font-medium" : "text-muted hover:text-primary border-transparent"}`}
+            className={`h-full border-b-2 text-sm transition-colors whitespace-nowrap cursor-pointer ${activeTab === tab ? "text-foreground border-foreground font-medium" : "text-muted hover:text-foreground border-transparent"}`}
           >
             {tab}
           </button>
         ))}
       </div>
       <div className="flex-1 overflow-y-auto hide-scrollbar">
-        {activeTab === "Open Orders"   && <OpenOrders   owner={owner} />}
         {activeTab === "Balances"      && <Balances     owner={owner} />}
-        {activeTab === "Order History" && <OrderHistory owner={owner} />}
         {activeTab === "Trade History" && <TradeHistory owner={owner} />}
       </div>
     </div>
