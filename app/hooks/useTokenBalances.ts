@@ -26,13 +26,14 @@ export function useTokenBalances(): TokenBalances {
 
     const load = async () => {
       try {
-        const { baseAta, quoteAta } = await getTakerATAs(publicKey);
-        const [base, quote] = await Promise.all([
-          CONNECTION.getTokenAccountBalance(baseAta).catch(() => null),
+        const { quoteAta } = await getTakerATAs(publicKey);
+        const [nativeLamports, quote] = await Promise.all([
+          CONNECTION.getBalance(publicKey).catch(() => null),
           CONNECTION.getTokenAccountBalance(quoteAta).catch(() => null),
         ]);
         if (!cancelled) {
-          setBaseBalance(base ? Number(base.value.amount) : 0);
+          // native SOL in lamports (1 SOL = 1e9 lamports), keep same unit as WSOL atoms
+          setBaseBalance(nativeLamports ?? 0);
           setQuoteBalance(quote ? Number(quote.value.amount) : 0);
         }
       } catch {}

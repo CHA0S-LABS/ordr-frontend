@@ -16,7 +16,7 @@ const Chart = dynamic(() => import('./components/Chart'), { ssr: false });
 
 const PAIR = { label: 'SOL-USD', symbol: 'BINANCE:SOLUSDT', binanceSymbol: 'SOLUSDT' };
 
-const HEADER_H = 92;
+const HEADER_H = 56;
 const BOTTOM_H = 40;
 
 export default function Home() {
@@ -67,15 +67,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="h-9 flex items-center px-3 md:px-5 space-x-5 overflow-x-auto hide-scrollbar">
-          <div className="flex items-center space-x-3 text-xs font-mono">
-            <span className="font-semibold text-foreground">{PAIR.label}</span>
-            {ticker
-              ? <span className={ticker.positive ? 'text-bid' : 'text-ask'}>{ticker.changePct}</span>
-              : <span className="text-muted">—</span>
-            }
-          </div>
-        </div>
       </header>
 
       <div
