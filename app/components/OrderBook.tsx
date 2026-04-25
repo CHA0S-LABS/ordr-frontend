@@ -24,29 +24,32 @@ interface PriceLevel {
   price: number;
   size: number;
   sum: number;
-  bps?: number;
+  totalValue: number;
 }
 
 const OrderRow = ({
   price,
   size,
   sum,
+  totalValue,
   type,
   maxSum,
   flashing,
-  bps,
 }: {
   price: number;
   size: number;
   sum: number;
+  totalValue: number;
   type: "ask" | "bid";
   maxSum: number;
   flashing?: boolean;
-  bps?: number;
 }) => {
   const depth = maxSum > 0 ? (sum / maxSum) * 100 : 0;
   const colorClass = type === "ask" ? "text-ask" : "text-bid";
   const bgClass = type === "ask" ? "bg-ask" : "bg-bid";
+  const tooltipBorder = type === "ask" ? "border-ask/60" : "border-bid/60";
+  const tooltipBg = type === "ask" ? "from-ask/20 to-transparent" : "from-bid/20 to-transparent";
+  const avgPrice = sum > 0 ? totalValue / sum : price;
 
   const flashStyle: React.CSSProperties = flashing
     ? { backgroundColor: type === "bid" ? "rgba(58,191,114,0.4)" : "rgba(224,85,85,0.4)" }
@@ -54,9 +57,24 @@ const OrderRow = ({
 
   return (
     <div
-      className="relative flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums leading-tight cursor-pointer hover:bg-surface-hover"
+      className="group relative flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums leading-tight cursor-pointer hover:bg-surface-hover"
       style={{ transition: "background-color 0.5s ease", ...flashStyle }}
     >
+      <div className={`absolute left-2 top-1/2 -translate-y-1/2 z-50 flex flex-col p-2 min-w-[160px] text-[11px] rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] backdrop-blur-md bg-background/90 border ${tooltipBorder} bg-gradient-to-r ${tooltipBg} pointer-events-none opacity-0 invisible scale-95 group-hover:opacity-100 group-hover:visible group-hover:scale-100 transition-all duration-200 ease-out origin-left`}>
+        <div className="flex justify-between gap-4 mb-1.5 font-sans">
+          <span className="text-muted">Avg. Price</span>
+          <span className="text-primary font-mono">{fp(avgPrice)}</span>
+        </div>
+        <div className="flex justify-between gap-4 mb-1.5 font-sans">
+          <span className="text-muted">Total Qty</span>
+          <span className="text-primary font-mono">{fp(sum)}</span>
+        </div>
+        <div className="flex justify-between gap-4 font-sans">
+          <span className="text-muted">Total Value</span>
+          <span className="text-primary font-mono">{fp(totalValue)}</span>
+        </div>
+      </div>
+
       <div
         className={`absolute inset-y-0 right-0 ${bgClass} opacity-15 dark:opacity-20`}
         style={{ width: `${depth}%`, transition: "width 0.4s ease" }}
@@ -149,26 +167,36 @@ export default function OrderBook() {
   const mid = ob.mid ? ob.mid / PRICE_SCALE : 0;
 
   let cumAsk = 0;
+  let cumAskValue = 0;
   const askLevels: PriceLevel[] = [...ob.asks]
     .map((a) => {
-      cumAsk += a.size / SIZE_SCALE;
+      const size = a.size / SIZE_SCALE;
+      const price = a.price / PRICE_SCALE;
+      cumAsk += size;
+      cumAskValue += size * price;
       return {
         rawPrice: a.price,
-        price: a.price / PRICE_SCALE,
-        size: a.size / SIZE_SCALE,
+        price,
+        size,
         sum: cumAsk,
+        totalValue: cumAskValue,
       };
     })
     .reverse();
 
   let cumBid = 0;
+  let cumBidValue = 0;
   const bidLevels: PriceLevel[] = ob.bids.map((b) => {
-    cumBid += b.size / SIZE_SCALE;
+    const size = b.size / SIZE_SCALE;
+    const price = b.price / PRICE_SCALE;
+    cumBid += size;
+    cumBidValue += size * price;
     return {
       rawPrice: b.price,
-      price: b.price / PRICE_SCALE,
-      size: b.size / SIZE_SCALE,
+      price,
+      size,
       sum: cumBid,
+      totalValue: cumBidValue,
     };
   });
 
@@ -263,6 +291,7 @@ export default function OrderBook() {
                     price={a.price}
                     size={a.size}
                     sum={a.sum}
+                    totalValue={a.totalValue}
                     type="ask"
                     maxSum={maxSum}
                     flashing={askFlash}
@@ -294,6 +323,7 @@ export default function OrderBook() {
                     price={b.price}
                     size={b.size}
                     sum={b.sum}
+                    totalValue={b.totalValue}
                     type="bid"
                     maxSum={maxSum}
                     flashing={bidFlash}
