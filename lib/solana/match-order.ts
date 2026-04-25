@@ -1,6 +1,10 @@
-import { Transaction } from "@solana/web3.js";
+import { Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import bs58 from "bs58";
-import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
+import {
+  createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction,
+  createCloseAccountInstruction,
+} from "@solana/spl-token";
 import { getTakerATAs } from "./token";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 import { CONNECTION, BASE_MINT, QUOTE_MINT } from "../chain-config";
@@ -93,19 +97,38 @@ export async function matchOrder(
   const txBytes = Buffer.from(base64Tx, "base64");
   const tx = Transaction.from(txBytes);
 
+  if (side === "ask") {
+    const wrapLamports = Math.round(size * LAMPORTS_PER_SOL);
+    tx.instructions.unshift(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: baseAta,
+        lamports: wrapLamports,
+      }),
+      createSyncNativeInstruction(baseAta),
+    );
+  }
+
+  if (side === "bid") {
+    tx.instructions.push(
+      createCloseAccountInstruction(
+        baseAta,
+        wallet.publicKey,
+        wallet.publicKey,
+      ),
+    );
+  }
+
   const signedTx = await wallet.signTransaction(tx);
 
-  // derive the txid from the signature bytes before sending — this is always correct
   const sigBytes = signedTx.signatures[0]?.signature;
   const knownSig = sigBytes ? bs58.encode(sigBytes) : null;
 
   const signature = await sendWithRetry(signedTx.serialize(), knownSig);
   if (signature !== knownSig) {
-    // different sig means it wasn't the "already processed" path — confirm normally
     await CONNECTION.confirmTransaction(signature, "confirmed");
   }
 
-  // Record trade only after on-chain confirmation
   await fetch("/api/trades", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -132,7 +155,6 @@ async function sendWithRetry(
       msg.includes("already been processed") ||
       msg.includes("AlreadyProcessed")
     ) {
-      // tx already landed — use the sig we computed from the signed bytes
       const match = msg.match(/([1-9A-HJ-NP-Za-km-z]{87,88})/);
       if (match) return match[1];
       if (fallbackSig) return fallbackSig;
