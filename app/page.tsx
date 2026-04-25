@@ -74,23 +74,23 @@ export default function Home() {
         style={{ height: `calc(100vh - ${HEADER_H}px - ${BOTTOM_H}px)` }}
       >
         <div className={`flex-1 flex-col bg-background min-w-0 border-b lg:border-b-0 lg:border-r border-border ${mobileView === 'order' ? 'hidden lg:flex' : 'flex'}`}>
-          <div className="h-16 flex items-center px-3 md:px-4 space-x-4 md:space-x-5 border-b border-border bg-surface shrink-0 overflow-x-auto hide-scrollbar">
+          <div className="h-12 flex items-center px-3 md:px-4 space-x-4 md:space-x-6 border-b border-border bg-surface shrink-0 overflow-x-auto hide-scrollbar">
             <div className="flex items-center space-x-2 shrink-0">
               <span className="text-base font-bold tracking-wide">{PAIR.label}</span>
             </div>
-            <div className="flex flex-col shrink-0">
-              <span className={`text-xl font-mono font-semibold ${ticker?.positive !== false ? 'text-bid' : 'text-ask'}`}>{ticker?.price ?? '—'}</span>
+            <div className="flex items-baseline space-x-2 shrink-0">
+              <span className={`text-lg font-mono font-semibold ${ticker?.positive !== false ? 'text-bid' : 'text-ask'}`}>{ticker?.price ?? '—'}</span>
               <span className={`text-xs font-mono ${ticker?.positive !== false ? 'text-bid' : 'text-ask'}`}>{ticker ? `${ticker.change} ${ticker.changePct}` : '—'}</span>
             </div>
-            <div className="hidden md:block h-6 w-px bg-border shrink-0" />
+            <div className="hidden md:block h-4 w-px bg-border shrink-0" />
             {[
               { label: 'Last Price', value: ticker?.lastPrice },
               { label: '24h Volume', value: ticker?.volume },
               { label: '24h High',   value: ticker?.high },
               { label: '24h Low',    value: ticker?.low },
             ].map(({ label, value }) => (
-              <div key={label} className="flex flex-col shrink-0">
-                <span className="text-[10px] text-muted whitespace-nowrap">{label}</span>
+              <div key={label} className="flex items-center space-x-1.5 shrink-0">
+                <span className="text-xs text-muted whitespace-nowrap">{label}</span>
                 <span className="text-xs font-mono text-foreground whitespace-nowrap">{value ?? '—'}</span>
               </div>
             ))}
