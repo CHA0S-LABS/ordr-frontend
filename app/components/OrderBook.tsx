@@ -24,6 +24,7 @@ interface PriceLevel {
   price: number;
   size: number;
   sum: number;
+  origIndex?: number;
   flash?: "up" | "down" | null;
 }
 
@@ -33,32 +34,27 @@ const OrderRow = ({
   sum,
   type,
   maxSum,
-  flash,
+  flashing,
 }: {
   price: number;
   size: number;
   sum: number;
   type: "ask" | "bid";
   maxSum: number;
-  flash?: "up" | "down" | null;
+  flashing?: boolean;
 }) => {
   const depth = maxSum > 0 ? (sum / maxSum) * 100 : 0;
   const colorClass = type === "ask" ? "text-ask" : "text-bid";
   const bgClass = type === "ask" ? "bg-ask" : "bg-bid";
 
-  const flashBg =
-    flash === "up"
-      ? type === "bid"
-        ? "bg-bid/40"
-        : "bg-ask/40"
-      : flash === "down"
-        ? "bg-surface-hover"
-        : "";
+  const flashStyle: React.CSSProperties = flashing
+    ? { backgroundColor: type === "bid" ? "rgba(58,191,114,0.4)" : "rgba(224,85,85,0.4)" }
+    : {};
 
   return (
     <div
-      className={`relative flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums leading-tight cursor-pointer transition-colors hover:bg-surface-hover ${flashBg}`}
-      style={{ transition: "background-color 0.3s ease" }}
+      className="relative flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums leading-tight cursor-pointer hover:bg-surface-hover"
+      style={{ transition: "background-color 0.5s ease", ...flashStyle }}
     >
       <div
         className={`absolute inset-y-0 right-0 ${bgClass} opacity-15 dark:opacity-20`}
@@ -76,7 +72,12 @@ const SIZE_SCALE_T = 1_000_000_000;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return d.toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function RecentTradesPanel() {
@@ -90,11 +91,18 @@ function RecentTradesPanel() {
       </div>
       <div className="flex-1 overflow-y-auto hide-scrollbar">
         {trades.length === 0 && (
-          <div className="text-center text-muted text-xs py-8">No trades yet</div>
+          <div className="text-center text-muted text-xs py-8">
+            No trades yet
+          </div>
         )}
         {trades.map((t) => (
-          <div key={t.id} className="flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums hover:bg-surface-hover">
-            <div className={`w-1/3 text-left ${t.side === "bid" ? "text-bid" : "text-ask"}`}>
+          <div
+            key={t.id}
+            className="flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums hover:bg-surface-hover"
+          >
+            <div
+              className={`w-1/3 text-left ${t.side === "bid" ? "text-bid" : "text-ask"}`}
+            >
               {fp(t.price / PRICE_SCALE_T)}
             </div>
             <div className="w-1/3 text-right text-primary">
@@ -113,24 +121,24 @@ function RecentTradesPanel() {
 export default function OrderBook() {
   const [tab, setTab] = useState<"book" | "trades">("book");
   const ob = useOrderbook();
-  const prevRef = useRef<Map<number, number>>(new Map());
-  const [flashMap, setFlashMap] = useState<Map<number, "up" | "down">>(new Map());
+  const prevMidRef = useRef<number | null>(null);
+  const [bidFlash, setBidFlash] = useState(false);
+  const [askFlash, setAskFlash] = useState(false);
 
   useEffect(() => {
-    const allLevels = [...ob.asks, ...ob.bids];
-    const newFlash = new Map<number, "up" | "down">();
-    for (const { price, size } of allLevels) {
-      const prev = prevRef.current.get(price);
-      if (prev !== undefined && prev !== size) {
-        newFlash.set(price, size > prev ? "up" : "down");
-      }
-    }
-    const nextPrev = new Map<number, number>();
-    for (const { price, size } of allLevels) nextPrev.set(price, size);
-    prevRef.current = nextPrev;
-    if (newFlash.size > 0) {
-      setFlashMap(newFlash);
-      setTimeout(() => setFlashMap(new Map()), 400);
+    const newMid = ob.mid;
+    if (newMid === null) return;
+    const prevMid = prevMidRef.current;
+    prevMidRef.current = newMid;
+    if (prevMid === null || prevMid === newMid) return;
+
+    // price went up → bids lit green; price went down → asks lit red
+    if (newMid > prevMid) {
+      setBidFlash(true);
+      setTimeout(() => setBidFlash(false), 500);
+    } else {
+      setAskFlash(true);
+      setTimeout(() => setAskFlash(false), 500);
     }
   }, [ob]);
 
@@ -145,8 +153,7 @@ export default function OrderBook() {
         sum: cumAsk,
       };
     })
-    .reverse()
-    .map((a) => ({ ...a, flash: flashMap.get(a.rawPrice) ?? null }));
+    .reverse();
 
   let cumBid = 0;
   const bidLevels: PriceLevel[] = ob.bids.map((b) => {
@@ -156,7 +163,6 @@ export default function OrderBook() {
       price: b.price / PRICE_SCALE,
       size: b.size / SIZE_SCALE,
       sum: cumBid,
-      flash: flashMap.get(b.price) ?? null,
     };
   });
 
@@ -184,13 +190,13 @@ export default function OrderBook() {
       <div className="h-16 flex items-end border-b border-border px-2 lg:px-4">
         <button
           onClick={() => setTab("book")}
-          className={`font-sans text-sm pb-2 border-b-2 mr-6 transition-colors ${tab === "book" ? "text-primary font-medium border-primary" : "text-muted border-transparent hover:text-primary"}`}
+          className={`font-sans text-sm pb-2 border-b-2 mr-6 cursor-pointer transition-colors ${tab === "book" ? "text-primary font-medium border-primary" : "text-muted border-transparent hover:text-primary"}`}
         >
           Book
         </button>
         <button
           onClick={() => setTab("trades")}
-          className={`font-sans text-sm pb-2 border-b-2 transition-colors ${tab === "trades" ? "text-primary font-medium border-primary" : "text-muted border-transparent hover:text-primary"}`}
+          className={`font-sans text-sm pb-2 border-b-2 cursor-pointer transition-colors ${tab === "trades" ? "text-primary font-medium border-primary" : "text-muted border-transparent hover:text-primary"}`}
         >
           Trades
         </button>
@@ -221,8 +227,18 @@ export default function OrderBook() {
               <span className="font-semibold text-primary">USD</span>
               <span className="text-muted">|</span>
               <span className="text-primary">1</span>
-              <svg className="w-3.5 h-3.5 text-muted ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg
+                className="w-3.5 h-3.5 text-muted ml-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </div>
           </div>
@@ -236,7 +252,15 @@ export default function OrderBook() {
           <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
             <div className="flex flex-col">
               {askLevels.map((a, i) => (
-                <OrderRow key={`ask-${i}-${a.rawPrice}`} price={a.price} size={a.size} sum={a.sum} type="ask" maxSum={maxSum} flash={a.flash} />
+                <OrderRow
+                  key={`ask-${i}-${a.rawPrice}`}
+                  price={a.price}
+                  size={a.size}
+                  sum={a.sum}
+                  type="ask"
+                  maxSum={maxSum}
+                  flashing={askFlash}
+                />
               ))}
             </div>
 
@@ -249,18 +273,30 @@ export default function OrderBook() {
                 {mid > 0 ? `$${fp(mid)}` : ""}
               </div>
               {spread !== null && (
-                <div className="text-xs text-muted font-mono">spread {spread}</div>
+                <div className="text-xs text-muted font-mono">
+                  spread {spread}
+                </div>
               )}
             </div>
 
             <div className="flex flex-col">
               {bidLevels.map((b, i) => (
-                <OrderRow key={`bid-${i}-${b.rawPrice}`} price={b.price} size={b.size} sum={b.sum} type="bid" maxSum={maxSum} flash={b.flash} />
+                <OrderRow
+                  key={`bid-${i}-${b.rawPrice}`}
+                  price={b.price}
+                  size={b.size}
+                  sum={b.sum}
+                  type="bid"
+                  maxSum={maxSum}
+                  flashing={bidFlash}
+                />
               ))}
             </div>
 
             {ob.asks.length === 0 && ob.bids.length === 0 && (
-              <div className="text-center text-muted text-xs py-4">No orders</div>
+              <div className="text-center text-muted text-xs py-4">
+                No orders
+              </div>
             )}
           </div>
 
@@ -270,8 +306,14 @@ export default function OrderBook() {
               <span className="text-ask font-medium">{askPct}% Sell</span>
             </div>
             <div className="w-full h-1.5 flex rounded-sm overflow-hidden bg-surface">
-              <div className="h-full bg-bid transition-all duration-500" style={{ width: `${bidPct}%` }} />
-              <div className="h-full bg-ask opacity-80 transition-all duration-500" style={{ width: `${askPct}%` }} />
+              <div
+                className="h-full bg-bid transition-all duration-500"
+                style={{ width: `${bidPct}%` }}
+              />
+              <div
+                className="h-full bg-ask opacity-80 transition-all duration-500"
+                style={{ width: `${askPct}%` }}
+              />
             </div>
           </div>
         </div>

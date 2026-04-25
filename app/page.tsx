@@ -1,12 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import OrderBook from './components/OrderBook';
 import OrderForm from './components/OrderForm';
-import BottomPanel from './components/BottomPanel';
+import BottomPanel, { BottomTab } from './components/BottomPanel';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Menu, X } from 'lucide-react';
 import { useBinanceTicker } from './hooks/useBinanceTicker';
@@ -15,40 +14,16 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 const Chart = dynamic(() => import('./components/Chart'), { ssr: false });
 
-function TickerStripItem({ pair, active, onClick }: { pair: { label: string; binanceSymbol: string }; active: boolean; onClick: () => void }) {
-  const ticker = useBinanceTicker(pair.binanceSymbol);
-  return (
-    <button
-      onClick={onClick}
-      className={`text-xs font-mono whitespace-nowrap transition-opacity ${active ? 'opacity-100' : 'opacity-50 hover:opacity-80'}`}
-    >
-      <span className="font-semibold text-primary">{pair.label}</span>{' '}
-      {ticker
-        ? <span className={ticker.positive ? 'text-bid' : 'text-ask'}>{ticker.changePct}</span>
-        : <span className="text-muted">—</span>
-      }
-    </button>
-  );
-}
-
-const BOTTOM_TABS = ['Open Orders', 'Balances', 'Order History', 'Trade History'] as const;
-type BottomTab = typeof BOTTOM_TABS[number];
-
-const PAIRS = [
-  { label: 'SOL-USD', symbol: 'BINANCE:SOLUSDT', binanceSymbol: 'SOLUSDT' },
-  { label: 'BTC-USD', symbol: 'BINANCE:BTCUSDT', binanceSymbol: 'BTCUSDT' },
-  { label: 'ETH-USD', symbol: 'BINANCE:ETHUSDT', binanceSymbol: 'ETHUSDT' },
-];
+const PAIR = { label: 'SOL-USD', symbol: 'BINANCE:SOLUSDT', binanceSymbol: 'SOLUSDT' };
 
 const HEADER_H = 92;
 const BOTTOM_H = 40;
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<BottomTab>(BOTTOM_TABS[0]);
+  const [activeTab, setActiveTab] = useState<BottomTab>('Balances');
   const [mobileView, setMobileView] = useState<'order' | 'charts'>('order');
-  const [activePair, setActivePair] = useState(PAIRS[0]);
   const [menuOpen, setMenuOpen] = useState(false);
-  const ticker = useBinanceTicker(activePair.binanceSymbol);
+  const ticker = useBinanceTicker(PAIR.binanceSymbol);
   const { connected, publicKey, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
 
@@ -65,7 +40,7 @@ export default function Home() {
   }
 
   return (
-    <main className="bg-background text-primary font-sans h-[100dvh] lg:h-auto overflow-hidden lg:overflow-visible flex flex-col lg:block relative">
+    <main className="bg-background text-foreground font-sans h-[100dvh] lg:h-auto overflow-hidden lg:overflow-visible flex flex-col lg:block relative">
 
       <header className="sticky top-0 z-50 shrink-0 border-b border-border bg-surface">
         <div className="h-14 flex items-center justify-between px-3 md:px-5 border-b border-border">
@@ -74,10 +49,6 @@ export default function Home() {
               <Image src="/logo.png" alt="ordr logo" width={42} height={42} className="rounded-full object-cover" />
               <span className="font-mono tracking-tighter text-3xl font-bold">ordr</span>
             </div>
-            <nav className="hidden md:flex items-center space-x-5 text-sm">
-              <Link href="/" className="text-primary font-medium border-b border-primary pb-px">Trade</Link>
-              <Link href="/swap" className="text-muted hover:text-primary transition-colors">Swap</Link>
-            </nav>
           </div>
           <div className="flex items-center space-x-2">
             <ThemeToggle />
@@ -88,7 +59,7 @@ export default function Home() {
               {connected && shortAddress ? shortAddress : 'Connect'}
             </button>
             <button
-              className="p-1.5 hover:bg-surface-hover lg:hidden text-primary"
+              className="p-1.5 hover:bg-surface-hover lg:hidden text-foreground cursor-pointer"
               onClick={() => setMenuOpen(true)}
             >
               <Menu className="w-4 h-4" />
@@ -96,16 +67,14 @@ export default function Home() {
           </div>
         </div>
 
-
         <div className="h-9 flex items-center px-3 md:px-5 space-x-5 overflow-x-auto hide-scrollbar">
-          {PAIRS.map(pair => (
-            <TickerStripItem
-              key={pair.label}
-              pair={pair}
-              active={activePair.label === pair.label}
-              onClick={() => setActivePair(pair)}
-            />
-          ))}
+          <div className="flex items-center space-x-3 text-xs font-mono">
+            <span className="font-semibold text-foreground">{PAIR.label}</span>
+            {ticker
+              ? <span className={ticker.positive ? 'text-bid' : 'text-ask'}>{ticker.changePct}</span>
+              : <span className="text-muted">—</span>
+            }
+          </div>
         </div>
       </header>
 
@@ -116,7 +85,7 @@ export default function Home() {
         <div className={`flex-1 flex-col bg-background min-w-0 border-b lg:border-b-0 lg:border-r border-border ${mobileView === 'order' ? 'hidden lg:flex' : 'flex'}`}>
           <div className="h-16 flex items-center px-3 md:px-4 space-x-4 md:space-x-5 border-b border-border bg-surface shrink-0 overflow-x-auto hide-scrollbar">
             <div className="flex items-center space-x-2 shrink-0">
-              <span className="text-base font-bold tracking-wide">{activePair.label}</span>
+              <span className="text-base font-bold tracking-wide">{PAIR.label}</span>
             </div>
             <div className="flex flex-col shrink-0">
               <span className={`text-xl font-mono font-semibold ${ticker?.positive !== false ? 'text-bid' : 'text-ask'}`}>{ticker?.price ?? '—'}</span>
@@ -131,7 +100,7 @@ export default function Home() {
             ].map(({ label, value }) => (
               <div key={label} className="flex flex-col shrink-0">
                 <span className="text-[10px] text-muted whitespace-nowrap">{label}</span>
-                <span className="text-xs font-mono text-primary whitespace-nowrap">{value ?? '—'}</span>
+                <span className="text-xs font-mono text-foreground whitespace-nowrap">{value ?? '—'}</span>
               </div>
             ))}
           </div>
@@ -139,7 +108,7 @@ export default function Home() {
           <div className="h-10 border-b border-border flex items-center px-4 bg-surface shrink-0">
             <div className="flex space-x-4">
               {['5m', '15m', '1H', '4H', '1D'].map((tf, i) => (
-                <span key={tf} className={`text-xs cursor-pointer transition-colors ${i === 0 ? 'text-primary' : 'text-muted hover:text-primary'}`}>
+                <span key={tf} className={`text-xs cursor-pointer transition-colors ${i === 0 ? 'text-foreground' : 'text-muted hover:text-foreground'}`}>
                   {tf}
                 </span>
               ))}
@@ -147,7 +116,7 @@ export default function Home() {
           </div>
 
           <div className="flex-1 relative min-h-[300px] lg:min-h-0">
-            <Chart symbol={activePair.symbol} />
+            <Chart symbol={PAIR.symbol} />
           </div>
         </div>
 
@@ -165,13 +134,13 @@ export default function Home() {
         <div className="bg-surface border border-border rounded-full p-1 flex space-x-1 pointer-events-auto shadow-xl">
           <button
             onClick={() => setMobileView('order')}
-            className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-colors ${mobileView === 'order' ? 'bg-primary text-background' : 'text-muted hover:text-primary'}`}
+            className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${mobileView === 'order' ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'}`}
           >
             Order
           </button>
           <button
             onClick={() => setMobileView('charts')}
-            className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-colors ${mobileView === 'charts' ? 'bg-primary text-background' : 'text-muted hover:text-primary'}`}
+            className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${mobileView === 'charts' ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'}`}
           >
             Charts
           </button>
@@ -187,19 +156,18 @@ export default function Home() {
         className={`fixed top-0 right-0 z-[70] h-full w-64 bg-surface border-l border-border flex flex-col transition-transform duration-300 ease-in-out lg:hidden ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="h-14 flex items-center justify-between px-4 border-b border-border shrink-0">
-          <span className="font-mono text-sm font-semibold text-primary">Menu</span>
-          <button className="p-1.5 hover:bg-surface-hover transition-colors text-primary" onClick={() => setMenuOpen(false)}>
+          <span className="font-mono text-sm font-semibold text-foreground">Menu</span>
+          <button className="p-1.5 hover:bg-surface-hover transition-colors text-foreground cursor-pointer" onClick={() => setMenuOpen(false)}>
             <X className="w-4 h-4" />
           </button>
         </div>
         <nav className="flex flex-col flex-1 py-2">
-          <Link href="/" onClick={() => setMenuOpen(false)} className="flex items-center px-5 py-3 text-sm font-medium text-primary border-b border-border hover:bg-surface-hover transition-colors">Trade</Link>
-          <Link href="/swap" onClick={() => setMenuOpen(false)} className="flex items-center px-5 py-3 text-sm text-muted border-b border-border hover:bg-surface-hover hover:text-primary transition-colors">Swap</Link>
+          <span className="flex items-center px-5 py-3 text-sm font-medium text-foreground border-b border-border">Trade</span>
         </nav>
         <div className="px-5 py-4 border-t border-border shrink-0">
           <button
             onClick={handleConnect}
-            className="w-full py-2 border border-border text-xs font-mono text-primary hover:bg-surface-hover transition-colors cursor-pointer"
+            className="w-full py-2 border border-border text-xs font-mono text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
           >
             {connected && shortAddress ? shortAddress : 'Connect Wallet'}
           </button>
