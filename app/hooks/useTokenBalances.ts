@@ -32,7 +32,6 @@ export function useTokenBalances(): TokenBalances {
           CONNECTION.getTokenAccountBalance(quoteAta).catch(() => null),
         ]);
         if (!cancelled) {
-          // native SOL in lamports (1 SOL = 1e9 lamports), keep same unit as WSOL atoms
           setBaseBalance(nativeLamports ?? 0);
           setQuoteBalance(quote ? Number(quote.value.amount) : 0);
         }
