@@ -154,7 +154,6 @@ export default function OrderBook() {
     prevMidRef.current = newMid;
     if (prevMid === null || prevMid === newMid) return;
 
-    // price went up → bids lit green; price went down → asks lit red
     if (newMid > prevMid) {
       setBidFlash(true);
       setTimeout(() => setBidFlash(false), 500);

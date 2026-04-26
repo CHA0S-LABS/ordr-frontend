@@ -5,7 +5,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light mode — Aged Copper */
   --background: oklch(0.98 0.005 40);
   --foreground: oklch(0.16 0.01 40);
   --surface: oklch(0.96 0.005 40);
@@ -51,7 +50,6 @@
 }
 
 .dark {
-  /* Dark mode — Aged Copper */
   --background: #141715;
   --foreground: oklch(0.97 0.005 40);
   --surface: #191c1a;
@@ -110,7 +108,6 @@
   --font-sans: var(--font-sans), Arial, Helvetica, sans-serif;
   --font-mono: var(--font-mono), monospace;
 
-  /* Shadcn variables */
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
