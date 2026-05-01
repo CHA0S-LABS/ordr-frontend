@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import OrderBook from './components/OrderBook';
 import OrderForm from './components/OrderForm';
 import BottomPanel, { BottomTab } from './components/BottomPanel';
@@ -23,9 +24,79 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<BottomTab>('Balances');
   const [mobileView, setMobileView] = useState<'order' | 'charts'>('order');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [layoutState, setLayoutState] = useState<1 | 2 | 3 | 4>(1);
   const ticker = useBinanceTicker(PAIR.binanceSymbol);
   const { connected, publicKey, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ordr-layout');
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if ([1, 2, 3, 4].includes(parsed)) {
+        setLayoutState(parsed as 1 | 2 | 3 | 4);
+      }
+    }
+  }, []);
+
+  const layout = layoutState;
+  const setLayout = (newLayout: 1 | 2 | 3 | 4) => {
+    if (layoutState === newLayout) return;
+    
+    const update = () => {
+      setLayoutState(newLayout);
+      localStorage.setItem('ordr-layout', newLayout.toString());
+    };
+
+    if ('startViewTransition' in document) {
+      (document as any).startViewTransition(() => {
+        flushSync(() => {
+          update();
+        });
+      });
+    } else {
+      update();
+    }
+  };
+
+  const getChartClasses = () => {
+    const base = "flex-1 flex-col bg-background min-w-0 border-b lg:border-b-0 border-border";
+    const mobile = mobileView === 'order' ? 'hidden' : 'flex';
+    if (layout === 1) return `${base} ${mobile} lg:flex lg:order-1 lg:border-r`;
+    if (layout === 2) return `${base} ${mobile} lg:flex lg:order-2 lg:border-r`;
+    if (layout === 3) return `${base} ${mobile} lg:hidden`;
+    if (layout === 4) return `${base} ${mobile} lg:flex lg:order-1 lg:border-r`;
+    return `${base} ${mobile} lg:flex lg:order-1 lg:border-r`;
+  };
+
+  const getMainClasses = () => {
+    const base = "flex-1 lg:flex-none flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-visible relative pb-14 lg:pb-0";
+    if (layout === 3) return `${base} lg:justify-center`;
+    return base;
+  };
+
+  const getWrapperClasses = () => {
+    if (mobileView === 'charts') return 'hidden lg:contents';
+    return 'flex flex-1 lg:contents';
+  };
+
+  const getBookClasses = () => {
+    const base = "w-1/2 bg-background flex-shrink-0 border-r border-border";
+    if (layout === 1) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-2 lg:border-r`;
+    if (layout === 2) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-1 lg:border-r`;
+    if (layout === 3) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-1 lg:border-r`;
+    if (layout === 4) return `${base} lg:hidden`;
+    return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-2 lg:border-r`;
+  };
+
+  const getFormClasses = () => {
+    const base = "w-1/2 bg-background flex-shrink-0 overflow-y-auto hide-scrollbar";
+    if (layout === 1) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-3`;
+    if (layout === 2) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-3`;
+    if (layout === 3) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-2`;
+    if (layout === 4) return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-2`;
+    return `${base} lg:w-[300px] xl:w-[320px] lg:block lg:order-3`;
+  };
 
   const shortAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
@@ -51,6 +122,42 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="hidden lg:flex items-center space-x-3 mr-2 border-r border-border pr-4">
+              <button
+                onClick={() => setLayout(1)}
+                className={`flex space-x-0.5 w-4 h-4 justify-center items-center hover:opacity-80 transition-opacity cursor-pointer ${layout === 1 ? "opacity-100" : "opacity-40"}`}
+                title="Default (Chart | Book | Form)"
+              >
+                <div className="w-1.5 h-3 bg-primary" />
+                <div className="w-0.5 h-3 bg-muted" />
+                <div className="w-0.5 h-3 bg-muted" />
+              </button>
+              <button
+                onClick={() => setLayout(2)}
+                className={`flex space-x-0.5 w-4 h-4 justify-center items-center hover:opacity-80 transition-opacity cursor-pointer ${layout === 2 ? "opacity-100" : "opacity-40"}`}
+                title="Book First (Book | Chart | Form)"
+              >
+                <div className="w-0.5 h-3 bg-muted" />
+                <div className="w-1.5 h-3 bg-primary" />
+                <div className="w-0.5 h-3 bg-muted" />
+              </button>
+              <button
+                onClick={() => setLayout(3)}
+                className={`flex space-x-0.5 w-4 h-4 justify-center items-center hover:opacity-80 transition-opacity cursor-pointer ${layout === 3 ? "opacity-100" : "opacity-40"}`}
+                title="Compact (Book | Form)"
+              >
+                <div className="w-1.5 h-3 bg-muted" />
+                <div className="w-1.5 h-3 bg-muted" />
+              </button>
+              <button
+                onClick={() => setLayout(4)}
+                className={`flex space-x-0.5 w-4 h-4 justify-center items-center hover:opacity-80 transition-opacity cursor-pointer ${layout === 4 ? "opacity-100" : "opacity-40"}`}
+                title="Chart Only (Chart | Form)"
+              >
+                <div className="w-2 h-3 bg-primary" />
+                <div className="w-0.5 h-3 bg-muted" />
+              </button>
+            </div>
             <ThemeToggle />
             <button
               onClick={handleConnect}
@@ -70,10 +177,10 @@ export default function Home() {
       </header>
 
       <div
-        className="flex-1 lg:flex-none flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-visible relative pb-14 lg:pb-0"
+        className={getMainClasses()}
         style={{ height: `calc(100vh - ${HEADER_H}px - ${BOTTOM_H}px)` }}
       >
-        <div className={`flex-1 flex-col bg-background min-w-0 border-b lg:border-b-0 lg:border-r border-border ${mobileView === 'order' ? 'hidden lg:flex' : 'flex'}`}>
+        <div className={getChartClasses()} style={{ viewTransitionName: 'chart-panel' }}>
           <div className="h-12 flex items-center px-3 md:px-4 space-x-4 md:space-x-6 border-b border-border bg-surface shrink-0 overflow-x-auto hide-scrollbar">
             <div className="flex items-center space-x-2 shrink-0">
               <span className="text-base font-bold tracking-wide">{PAIR.label}</span>
@@ -111,11 +218,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div className={`flex lg:flex ${mobileView === 'charts' ? 'hidden lg:flex' : 'flex-1 lg:flex-none'}`}>
-          <div className="w-1/2 lg:w-[300px] xl:w-[320px] border-r border-border bg-background flex-shrink-0">
+        <div className={getWrapperClasses()}>
+          <div className={getBookClasses()} style={{ viewTransitionName: 'book-panel' }}>
             <OrderBook />
           </div>
-          <div className="w-1/2 lg:w-[300px] xl:w-[320px] bg-background flex-shrink-0 overflow-y-auto hide-scrollbar">
+          <div className={getFormClasses()} style={{ viewTransitionName: 'form-panel' }}>
             <OrderForm />
           </div>
         </div>
