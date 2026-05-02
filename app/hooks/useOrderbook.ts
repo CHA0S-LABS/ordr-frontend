@@ -13,8 +13,12 @@ export interface OrderbookRaw {
   mid: number | null;
 }
 
-export function useOrderbook(): OrderbookRaw {
-  const [data, setData] = useState<OrderbookRaw>({ asks: [], bids: [], mid: null });
+export interface OrderbookState extends OrderbookRaw {
+  loading: boolean;
+}
+
+export function useOrderbook(): OrderbookState {
+  const [data, setData] = useState<OrderbookState>({ asks: [], bids: [], mid: null, loading: true });
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +28,7 @@ export function useOrderbook(): OrderbookRaw {
         const res = await fetch("/api/orderbook");
         if (!res.ok || cancelled) return;
         const json: OrderbookRaw = await res.json();
-        if (!cancelled) setData(json);
+        if (!cancelled) setData({ ...json, loading: false });
       } catch {}
     };
 

@@ -56,8 +56,18 @@ function Balances({ owner }: { owner: string | null }) {
   );
 }
 
+const SkeletonRow = () => (
+  <tr className="border-b border-border/40">
+    {[1,2,3,4].map(i => (
+      <td key={i} className="py-2 px-3">
+        <div className="h-3 rounded bg-surface-hover animate-pulse" style={{ width: i === 1 ? '40%' : '60%' }} />
+      </td>
+    ))}
+  </tr>
+);
+
 function TradeHistory({ owner }: { owner: string | null }) {
-  const trades = useRecentTrades();
+  const { trades, loading } = useRecentTrades();
   const myTrades = owner ? trades.filter(t => t.taker === owner) : [];
   return (
     <table className="w-full">
@@ -66,8 +76,9 @@ function TradeHistory({ owner }: { owner: string | null }) {
       </thead>
       <tbody>
         {!owner && <Empty msg="Connect wallet to view trade history" />}
-        {owner && myTrades.length === 0 && <Empty msg="No trades yet" />}
-        {myTrades.map(t => (
+        {owner && loading && [1,2,3,4,5].map(i => <SkeletonRow key={i} />)}
+        {owner && !loading && myTrades.length === 0 && <Empty msg="No trades yet" />}
+        {!loading && myTrades.map(t => (
           <tr key={t.id} className="border-b border-border/40 hover:bg-surface-hover">
             <TD className={t.side === "bid" ? "text-bid" : "text-ask"}>{t.side === "bid" ? "Buy" : "Sell"}</TD>
             <TD right>{fp(t.price / PRICE_SCALE)}</TD>

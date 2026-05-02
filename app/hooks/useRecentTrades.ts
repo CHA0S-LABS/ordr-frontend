@@ -13,30 +13,35 @@ export interface Trade {
 
 const POLL_MS = 3000;
 
-export function useRecentTrades(): Trade[] {
-  const [trades, setTrades] = useState<Trade[]>([]);
+export interface TradesState {
+  trades: Trade[];
+  loading: boolean;
+}
+
+export function useRecentTrades(): TradesState {
+  const [state, setState] = useState<TradesState>({ trades: [], loading: true });
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetch() {
+    async function load() {
       try {
         const res = await window.fetch("/api/trades");
         if (!res.ok) return;
         const json = await res.json();
         if (!cancelled && Array.isArray(json.trades)) {
-          setTrades(json.trades);
+          setState({ trades: json.trades, loading: false });
         }
       } catch {}
     }
 
-    fetch();
-    const id = setInterval(fetch, POLL_MS);
+    load();
+    const id = setInterval(load, POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, []);
 
-  return trades;
+  return state;
 }

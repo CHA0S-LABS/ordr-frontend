@@ -101,8 +101,36 @@ function formatTime(iso: string): string {
   });
 }
 
+const SkeletonOrderRow = ({ type, depth }: { type: "ask" | "bid"; depth: number }) => (
+  <div className="relative flex justify-between px-2 lg:px-4 py-0.5 leading-tight">
+    <div
+      className={`absolute inset-y-0 right-0 ${type === "ask" ? "bg-ask" : "bg-bid"} opacity-15`}
+      style={{ width: `${depth}%` }}
+    />
+    <div className="z-10 w-1/3">
+      <div className={`h-2 rounded-sm animate-pulse ${type === "ask" ? "bg-ask/20" : "bg-bid/20"}`} style={{ width: "58%" }} />
+    </div>
+    <div className="z-10 w-1/3 flex justify-end">
+      <div className="h-2 w-10 rounded-sm animate-pulse bg-border" />
+    </div>
+    <div className="z-10 w-1/3 flex justify-end">
+      <div className="h-2 w-10 rounded-sm animate-pulse bg-border" />
+    </div>
+  </div>
+);
+
+const SkeletonTradeRow = () => (
+  <div className="flex justify-between px-2 lg:px-4 py-0.5">
+    {[1,2,3].map(i => (
+      <div key={i} className={`w-1/3 ${i > 1 ? "flex justify-end" : ""}`}>
+        <div className="h-3 rounded animate-pulse bg-surface-hover" style={{ width: `${50 + i * 10}%` }} />
+      </div>
+    ))}
+  </div>
+);
+
 function RecentTradesPanel() {
-  const trades = useRecentTrades();
+  const { trades, loading } = useRecentTrades();
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted shrink-0">
@@ -111,27 +139,17 @@ function RecentTradesPanel() {
         <div className="w-1/3 text-right">Time</div>
       </div>
       <div className="flex-1 overflow-y-auto hide-scrollbar">
-        {trades.length === 0 && (
-          <div className="text-center text-muted text-xs py-8">
-            No trades yet
-          </div>
+        {loading && [1,2,3,4,5,6,7,8].map(i => <SkeletonTradeRow key={i} />)}
+        {!loading && trades.length === 0 && (
+          <div className="text-center text-muted text-xs py-8">No trades yet</div>
         )}
-        {trades.map((t) => (
-          <div
-            key={t.id}
-            className="flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums hover:bg-surface-hover"
-          >
-            <div
-              className={`w-1/3 text-left ${t.side === "bid" ? "text-bid" : "text-ask"}`}
-            >
+        {!loading && trades.map((t) => (
+          <div key={t.id} className="flex justify-between px-2 lg:px-4 py-0.5 text-xs font-mono tabular-nums hover:bg-surface-hover">
+            <div className={`w-1/3 text-left ${t.side === "bid" ? "text-bid" : "text-ask"}`}>
               {fp(t.price / PRICE_SCALE_T)}
             </div>
-            <div className="w-1/3 text-right text-primary">
-              {(t.size / SIZE_SCALE_T).toFixed(4)}
-            </div>
-            <div className="w-1/3 text-right text-muted">
-              {formatTime(t.created_at)}
-            </div>
+            <div className="w-1/3 text-right text-primary">{(t.size / SIZE_SCALE_T).toFixed(4)}</div>
+            <div className="w-1/3 text-right text-muted">{formatTime(t.created_at)}</div>
           </div>
         ))}
       </div>
@@ -275,68 +293,54 @@ export default function OrderBook() {
             </div>
           </div>
 
-          <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted">
-            <div className="w-1/3 text-left">Price (USD)</div>
-            <div className="w-1/3 text-right">Size (SOL)</div>
-            <div className="w-1/3 text-right">Total (SOL)</div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
-            {viewMode !== "bids" && (
-              <div className="flex flex-col">
-                {askLevels.map((a, i) => (
-                  <OrderRow
-                    key={`ask-${i}-${a.rawPrice}`}
-                    price={a.price}
-                    size={a.size}
-                    sum={a.sum}
-                    totalValue={a.totalValue}
-                    type="ask"
-                    maxSum={maxSum}
-                    flashing={askFlash}
-                  />
-                ))}
+          {ob.loading ? (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col justify-evenly">
+                {[100,90,80,70,60,52,44,36,28,22,16,10].map((d, i) => <SkeletonOrderRow key={i} type="ask" depth={d} />)}
               </div>
-            )}
-
-            <div className="py-2 flex items-center px-2 lg:px-4 my-1">
-              <div className="text-bid text-lg font-mono flex items-center mr-3 font-semibold">
-                {mid > 0 ? fp(mid) : "—"}
-                <span className="ml-1 text-base font-bold">↑</span>
+              <div className="py-2 px-2 lg:px-4 shrink-0 border-y border-border/50">
+                <div className="h-4 w-20 rounded-sm animate-pulse bg-border" />
               </div>
-              <div className="text-xs text-primary font-sans mr-auto">
-                {mid > 0 ? `$${fp(mid)}` : ""}
+              <div className="flex-1 flex flex-col justify-evenly">
+                {[10,16,22,28,36,44,52,60,70,80,90,100].map((d, i) => <SkeletonOrderRow key={i} type="bid" depth={d} />)}
               </div>
-              {spread !== null && (
-                <div className="text-xs text-muted font-mono">
-                  spread {spread}
-                </div>
-              )}
             </div>
-
-            {viewMode !== "asks" && (
-              <div className="flex flex-col">
-                {bidLevels.map((b, i) => (
-                  <OrderRow
-                    key={`bid-${i}-${b.rawPrice}`}
-                    price={b.price}
-                    size={b.size}
-                    sum={b.sum}
-                    totalValue={b.totalValue}
-                    type="bid"
-                    maxSum={maxSum}
-                    flashing={bidFlash}
-                  />
-                ))}
+          ) : (
+            <>
+              <div className="flex justify-between px-2 lg:px-4 py-2 border-b border-border text-[11px] font-sans text-muted">
+                <div className="w-1/3 text-left">Price (USD)</div>
+                <div className="w-1/3 text-right">Size (SOL)</div>
+                <div className="w-1/3 text-right">Total (SOL)</div>
               </div>
-            )}
-
-            {ob.asks.length === 0 && ob.bids.length === 0 && (
-              <div className="text-center text-muted text-xs py-4">
-                No orders
+              <div className="flex-1 overflow-y-auto hide-scrollbar py-2 flex flex-col justify-center">
+                {viewMode !== "bids" && (
+                  <div className="flex flex-col">
+                    {askLevels.map((a, i) => (
+                      <OrderRow key={`ask-${i}-${a.rawPrice}`} price={a.price} size={a.size} sum={a.sum} totalValue={a.totalValue} type="ask" maxSum={maxSum} flashing={askFlash} />
+                    ))}
+                  </div>
+                )}
+                <div className="py-2 flex items-center px-2 lg:px-4 my-1">
+                  <div className="text-bid text-lg font-mono flex items-center mr-3 font-semibold">
+                    {mid > 0 ? fp(mid) : "—"}
+                    <span className="ml-1 text-base font-bold">↑</span>
+                  </div>
+                  <div className="text-xs text-primary font-sans mr-auto">{mid > 0 ? `$${fp(mid)}` : ""}</div>
+                  {spread !== null && <div className="text-xs text-muted font-mono">spread {spread}</div>}
+                </div>
+                {viewMode !== "asks" && (
+                  <div className="flex flex-col">
+                    {bidLevels.map((b, i) => (
+                      <OrderRow key={`bid-${i}-${b.rawPrice}`} price={b.price} size={b.size} sum={b.sum} totalValue={b.totalValue} type="bid" maxSum={maxSum} flashing={bidFlash} />
+                    ))}
+                  </div>
+                )}
+                {ob.asks.length === 0 && ob.bids.length === 0 && (
+                  <div className="text-center text-muted text-xs py-4">No orders</div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           <div className="px-2 lg:px-4 py-3 mt-auto border-t border-border flex flex-col justify-center shrink-0">
             <div className="flex justify-between text-xs font-mono mb-1">
