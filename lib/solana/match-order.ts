@@ -1,7 +1,7 @@
 import { Transaction, SystemProgram } from "@solana/web3.js";
 import bs58 from "bs58";
 import {
-  createAssociatedTokenAccountInstruction,
+  createAssociatedTokenAccountIdempotentInstruction,
   createSyncNativeInstruction,
   createCloseAccountInstruction,
 } from "@solana/spl-token";
@@ -30,44 +30,10 @@ export async function matchOrder(
   if (!wallet.publicKey) throw new Error("Wallet not connected");
   if (!wallet.signTransaction)
     throw new Error("Wallet does not support signing");
+  if (!wallet.signAllTransactions)
+    throw new Error("Wallet does not support signAllTransactions");
 
   const { baseAta, quoteAta } = await getTakerATAs(wallet.publicKey);
-
-  const [baseInfo, quoteInfo] = await Promise.all([
-    CONNECTION.getAccountInfo(baseAta),
-    CONNECTION.getAccountInfo(quoteAta),
-  ]);
-
-  const setupIxs = [];
-  if (!baseInfo) {
-    setupIxs.push(
-      createAssociatedTokenAccountInstruction(
-        wallet.publicKey,
-        baseAta,
-        wallet.publicKey,
-        BASE_MINT,
-      ),
-    );
-  }
-  if (!quoteInfo) {
-    setupIxs.push(
-      createAssociatedTokenAccountInstruction(
-        wallet.publicKey,
-        quoteAta,
-        wallet.publicKey,
-        QUOTE_MINT,
-      ),
-    );
-  }
-
-  if (setupIxs.length > 0) {
-    const setupTx = new Transaction().add(...setupIxs);
-    setupTx.recentBlockhash = (await CONNECTION.getLatestBlockhash()).blockhash;
-    setupTx.feePayer = wallet.publicKey;
-    const signedSetup = await wallet.signTransaction(setupTx);
-    const setupSig = await sendWithRetry(signedSetup.serialize());
-    await CONNECTION.confirmTransaction(setupSig, "confirmed");
-  }
 
   const res = await fetch(`/api/match_order`, {
     method: "POST",
@@ -87,18 +53,43 @@ export async function matchOrder(
     throw new Error(`Backend error: ${err}`);
   }
 
-  const { transaction: base64Tx, price: fillPrice, size: fillSize, side: fillSide } = await res.json();
+  const {
+    transaction: base64Tx,
+    price: fillPrice,
+    size: fillSize,
+    side: fillSide,
+  } = await res.json();
 
   if (!base64Tx)
     throw new Error(
       "No transaction returned — no liquidity or price outside limit",
     );
 
-  const txBytes = Buffer.from(base64Tx, "base64");
-  const tx = Transaction.from(txBytes);
+  const backendTx = Transaction.from(Buffer.from(base64Tx, "base64"));
+
+  const { blockhash } = await CONNECTION.getLatestBlockhash();
+
+  const tradeTx = new Transaction();
+  tradeTx.recentBlockhash = blockhash;
+  tradeTx.feePayer = wallet.publicKey;
+
+  tradeTx.add(
+    createAssociatedTokenAccountIdempotentInstruction(
+      wallet.publicKey,
+      baseAta,
+      wallet.publicKey,
+      BASE_MINT,
+    ),
+    createAssociatedTokenAccountIdempotentInstruction(
+      wallet.publicKey,
+      quoteAta,
+      wallet.publicKey,
+      QUOTE_MINT,
+    ),
+  );
 
   if (side === "ask") {
-    tx.instructions.unshift(
+    tradeTx.add(
       SystemProgram.transfer({
         fromPubkey: wallet.publicKey,
         toPubkey: baseAta,
@@ -108,8 +99,10 @@ export async function matchOrder(
     );
   }
 
+  backendTx.instructions.forEach((ix) => tradeTx.add(ix));
+
   if (side === "bid") {
-    tx.instructions.push(
+    tradeTx.add(
       createCloseAccountInstruction(
         baseAta,
         wallet.publicKey,
@@ -118,15 +111,13 @@ export async function matchOrder(
     );
   }
 
-  const signedTx = await wallet.signTransaction(tx);
+  const [signedTrade] = await wallet.signAllTransactions([tradeTx]);
 
-  const sigBytes = signedTx.signatures[0]?.signature;
+  const sigBytes = signedTrade.signatures[0]?.signature;
   const knownSig = sigBytes ? bs58.encode(sigBytes) : null;
 
-  const signature = await sendWithRetry(signedTx.serialize(), knownSig);
-  if (signature !== knownSig) {
-    await CONNECTION.confirmTransaction(signature, "confirmed");
-  }
+  const signature = await sendWithRetry(signedTrade.serialize(), knownSig);
+  await CONNECTION.confirmTransaction(signature, "confirmed");
 
   await fetch("/api/trades", {
     method: "POST",
