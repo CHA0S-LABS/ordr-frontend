@@ -1,3 +1,13 @@
+#### Ecosystem
+
+- **[ordr](https://github.com/CHA0S-LABS/ordr)**: on-chain CLOB program
+- **[ordr-market-maker](https://github.com/CHA0S-LABS/ordr-market-maker)**: MM bot that places and reprices quotes
+- **[ordr-backend](https://github.com/CHA0S-LABS/ordr-backend)**: indexer and REST API
+- **[ordr-frontend](https://github.com/CHA0S-LABS/ordr-frontend)**: web trading UI
+- **[ordr-seeker](https://github.com/CHA0S-LABS/ordr-seeker)**: native mobile trading app for Seeker
+
+---
+
 <div align="center">
 
 <img src="assets/logo.png" alt="ordr.trade" width="160" />
@@ -18,7 +28,7 @@ The trading UI for [ordr.trade](https://ordr.trade) - a fully on-chain CLOB on S
 
 Real-time taker interface for the ordr on-chain orderbook. Connects to a Solana wallet, displays the live order book and price chart, and submits market orders through the backend.
 
-Part of the ordr ecosystem - see [ordr](https://github.com/ordrdottrade/ordr) for the on-chain program that this UI settles against.
+Part of the ordr ecosystem - see [ordr](https://github.com/CHA0S-LABS/ordr) for the on-chain program that this UI settles against.
 
 Built by Chaos Labs.
 
@@ -36,8 +46,3 @@ Built by Chaos Labs.
 4. Frontend decodes it, requests wallet signature, and submits to Solana
 5. Settlement happens on-chain in the ordr program
 
-## Related repos
-
-- [ordr](https://github.com/ordrdottrade/ordr) - on-chain program
-- [ordr-backend](https://github.com/ordrdottrade/ordr-backend) - indexer + REST API
-- [ordr-market-maker](https://github.com/ordrdottrade/ordr-market-maker) - MM bot that places and reprices quotes
