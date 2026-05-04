@@ -296,13 +296,13 @@ export default function OrderBook() {
           {ob.loading ? (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 flex flex-col justify-evenly">
-                {[100,90,80,70,60,52,44,36,28,22,16,10].map((d, i) => <SkeletonOrderRow key={i} type="ask" depth={d} />)}
+                {[100,92,84,76,68,60,52,44,36,28,20,14,8].map((d, i) => <SkeletonOrderRow key={i} type="ask" depth={d} />)}
               </div>
               <div className="py-2 px-2 lg:px-4 shrink-0 border-y border-border/50">
                 <div className="h-4 w-20 rounded-sm animate-pulse bg-border" />
               </div>
               <div className="flex-1 flex flex-col justify-evenly">
-                {[10,16,22,28,36,44,52,60,70,80,90,100].map((d, i) => <SkeletonOrderRow key={i} type="bid" depth={d} />)}
+                {[8,14,20,28,36,44,52,60,68,76,84,92,100].map((d, i) => <SkeletonOrderRow key={i} type="bid" depth={d} />)}
               </div>
             </div>
           ) : (
