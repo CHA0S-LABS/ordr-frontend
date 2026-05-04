@@ -38,6 +38,10 @@ Built by Chaos Labs.
 
 </div>
 
+## Demo
+
+https://github.com/user-attachments/assets/f4446236-ef58-49ad-b48f-ab81fb0b3717
+
 ## How orders work
 
 1. User enters a size and clicks **Buy** or **Sell**
