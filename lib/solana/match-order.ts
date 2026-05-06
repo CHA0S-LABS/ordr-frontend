@@ -111,6 +111,13 @@ export async function matchOrder(
     );
   }
 
+  const simResult = await CONNECTION.simulateTransaction(tradeTx);
+  if (simResult.value.err) {
+    throw new Error(
+      `Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`,
+    );
+  }
+
   const [signedTrade] = await wallet.signAllTransactions([tradeTx]);
 
   const sigBytes = signedTrade.signatures[0]?.signature;
