@@ -112,6 +112,7 @@ export async function matchOrder(
   }
 
   const simResult = await CONNECTION.simulateTransaction(tradeTx);
+
   if (simResult.value.err) {
     throw new Error(
       `Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`,

@@ -12,12 +12,12 @@ interface UseMatchOrderState {
 }
 
 function friendlyError(msg: string): string {
-  if (msg.includes("insufficient funds") || msg.includes("0x1")) return "Insufficient funds.";
+  if (msg.includes("insufficient funds") || msg.includes("0x1") || msg.includes('"Custom":1')) return "Insufficient funds. For a buy order you need USDC; for a sell order you need SOL.";
   if (msg.includes("no liquidity") || msg.includes("No transaction returned")) return "No liquidity available at this price.";
   if (msg.includes("price outside limit") || msg.includes("outside limit")) return "Price moved outside your slippage limit. Try again.";
   if (msg.includes("Wallet not connected")) return "Connect your wallet first.";
   if (msg.includes("User rejected")) return "Transaction rejected.";
-  if (msg.includes("invalid account data")) return "Order failed — maker account not available. Try again.";
+  if (msg.includes("invalid account data")) return "Order failed: maker account not available. Try again.";
   return msg;
 }
 
