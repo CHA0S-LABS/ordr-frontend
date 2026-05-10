@@ -160,7 +160,7 @@ export default function OrderForm() {
               <span className="text-bid">{slippagePct}%</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted font-sans">Taker Fee (0.25%)</span>
+              <span className="text-muted font-sans">Taker Fee (0.05%)</span>
               <span className="text-foreground">
                 {orderValueUSD > 0 ? `$${feeUSD.toFixed(4)}` : "$0.00"}
               </span>
