@@ -17,10 +17,35 @@ const fp = (n: number) =>
     maximumFractionDigits: 2,
   }).format(n);
 
+const MIN_SOL = 1 / SIZE_SCALE; // 1 lamport expressed in SOL
+
+function validateSize(
+  val: string,
+  available: number | null,
+): string | null {
+  if (val === "" || val === ".") return null;
+  const n = parseFloat(val);
+  if (isNaN(n) || !isFinite(n)) return "Enter a valid number";
+  if (n <= 0) return "Size must be greater than 0";
+  if (n < MIN_SOL) return `Minimum size is ${MIN_SOL} SOL`;
+  if (available !== null && n > available) return "Insufficient balance";
+  return null;
+}
+
+function validateSlippage(val: string): string | null {
+  if (val === "") return null;
+  const n = parseFloat(val);
+  if (isNaN(n) || !isFinite(n)) return "Invalid slippage";
+  if (n <= 0) return "Must be > 0%";
+  if (n > 50) return "Max slippage is 50%";
+  return null;
+}
+
 export default function OrderForm() {
   const [slippage, setSlippage] = useState("0.5%");
   const [customSlippage, setCustomSlippage] = useState("");
   const [sizeVal, setSizeVal] = useState("");
+  const [sizeTouched, setSizeTouched] = useState(false);
 
   const { connected } = useWallet();
   const { submit, loading } = useMatchOrder();
@@ -44,9 +69,15 @@ export default function OrderForm() {
   const takerFeeRate = 0.0005;
   const feeUSD = orderValueUSD * takerFeeRate;
 
+  const sizeError = sizeTouched ? validateSize(sizeVal, availableSOL) : null;
+  const slippageError = validateSlippage(customSlippage);
+  const isInvalid =
+    !!validateSize(sizeVal, availableSOL) || !!slippageError || sizeVal === "";
+
   function handleOrder(side: "bid" | "ask") {
+    setSizeTouched(true);
     const sizeRaw = Math.round(sizeInSol * SIZE_SCALE);
-    if (!sizeRaw || sizeRaw <= 0) return;
+    if (isInvalid || !sizeRaw || sizeRaw <= 0) return;
 
     let limitPriceRaw: number | undefined;
     if (side === "bid" && bestAskRaw !== null) {
@@ -83,26 +114,30 @@ export default function OrderForm() {
               type="text"
               placeholder="0.00"
               value={sizeVal}
-              onChange={(e) => setSizeVal(e.target.value)}
-              className="bg-surface border border-border text-foreground p-2 pr-12 font-mono text-sm w-full focus:outline-none focus:border-muted transition-colors"
+              onChange={(e) => { setSizeVal(e.target.value); setSizeTouched(true); }}
+              onBlur={() => setSizeTouched(true)}
+              className={`bg-surface border text-foreground p-2 pr-12 font-mono text-sm w-full focus:outline-none transition-colors ${sizeError ? "border-ask" : "border-border focus:border-muted"}`}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted border-l border-border pl-2">
               SOL
             </span>
           </div>
+          {sizeError && (
+            <p className="text-[11px] text-ask mt-1">{sizeError}</p>
+          )}
         </div>
 
         <div className="mt-4 flex space-x-2">
           <button
             onClick={() => handleOrder("bid")}
-            disabled={!connected || loading}
+            disabled={!connected || loading || isInvalid}
             className="flex-1 bg-bid hover:bg-bid-hover text-white font-sans font-semibold py-3 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             {loading ? "Submitting..." : "Buy"}
           </button>
           <button
             onClick={() => handleOrder("ask")}
-            disabled={!connected || loading}
+            disabled={!connected || loading || isInvalid}
             className="flex-1 bg-ask hover:bg-ask-hover text-white font-sans font-semibold py-3 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             {loading ? "Submitting..." : "Sell"}
@@ -133,10 +168,13 @@ export default function OrderForm() {
                   setCustomSlippage(e.target.value);
                   setSlippage("");
                 }}
-                className="w-14 px-2 py-0.5 text-[10px] font-mono border border-border bg-surface text-foreground focus:outline-none focus:border-foreground transition-colors placeholder:text-muted"
+                className={`w-14 px-2 py-0.5 text-[10px] font-mono border bg-surface text-foreground focus:outline-none transition-colors placeholder:text-muted ${slippageError ? "border-ask" : "border-border focus:border-foreground"}`}
               />
             </div>
           </div>
+          {slippageError && (
+            <p className="text-[11px] text-ask -mt-2 mb-3">{slippageError}</p>
+          )}
 
           <div className="space-y-2.5 text-xs font-mono">
             <div className="flex justify-between">
@@ -160,7 +198,7 @@ export default function OrderForm() {
               <span className="text-bid">{slippagePct}%</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted font-sans">Taker Fee (0.05%)</span>
+              <span className="text-muted font-sans">Taker Fee (0.005%)</span>
               <span className="text-foreground">
                 {orderValueUSD > 0 ? `$${feeUSD.toFixed(4)}` : "$0.00"}
               </span>
