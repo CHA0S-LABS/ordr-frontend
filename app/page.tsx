@@ -205,10 +205,28 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Chart / Depth tab strip */}
+          <div className="flex items-end px-4 border-b border-border bg-surface shrink-0 h-9">
+            {(['chart', 'depth'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setChartView(v)}
+                className={`relative h-full px-3 text-xs font-medium transition-colors cursor-pointer mr-1 ${
+                  chartView === v ? 'text-foreground' : 'text-muted hover:text-foreground/70'
+                }`}
+              >
+                {v === 'chart' ? 'Chart' : 'Depth'}
+                {chartView === v && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground" />
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="flex-1 relative min-h-[300px] lg:min-h-0">
-            <Chart symbol={PAIR.symbol} chartView={chartView} onViewChange={setChartView} />
+            <Chart symbol={PAIR.symbol} />
             {chartView === 'depth' && (
-              <div className="absolute left-0 right-0 top-0 z-10" style={{ bottom: 36 }}>
+              <div className="absolute inset-0 z-10">
                 <DepthChart />
               </div>
             )}

@@ -221,15 +221,20 @@ export default function DepthChart() {
     const rangeColor = isBid ? "#0a9981" : "#f23444";
 
     const dark = resolvedTheme !== "light";
-    const tipBg     = dark ? "#1a1f1c" : "#ffffff";
-    const tipBorder = dark ? "#2c3330" : "#e5e2db";
+    const tint  = isBid ? (dark ? 'rgba(10,153,129,0.08)' : 'rgba(10,153,129,0.06)')
+                        : (dark ? 'rgba(242,52,68,0.08)'  : 'rgba(242,52,68,0.06)');
+    const tipBg     = dark ? `rgba(19,22,20,0.72)` : `rgba(250,249,246,0.78)`;
+    const tipBorder = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)';
     const labelClr  = dark ? "#8a9490" : "#8a8580";
     const valueClr  = dark ? "#e8e4dc" : "#1a1916";
 
     tooltip.style.display = "block";
     tooltip.style.left = `${Math.min(mx + 14, W - 170)}px`;
     tooltip.style.top  = `${Math.max(PAD_T + 4, e.clientY - rect.top - 10)}px`;
-    tooltip.style.background = tipBg;
+    tooltip.style.background = `${tipBg}`;
+    tooltip.style.backgroundImage = `linear-gradient(135deg, ${tint}, ${tint})`;
+    tooltip.style.backdropFilter = 'blur(12px)';
+    (tooltip.style as any).WebkitBackdropFilter = 'blur(12px)';
     tooltip.style.border = `1px solid ${tipBorder}`;
     tooltip.innerHTML = `
       <table style="border-collapse:collapse;width:100%">
@@ -272,10 +277,10 @@ export default function DepthChart() {
           position: "absolute",
           pointerEvents: "none",
           zIndex: 10,
-          borderRadius: 6,
-          padding: "8px 10px",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-          minWidth: 148,
+          borderRadius: 10,
+          padding: "10px 12px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04) inset",
+          minWidth: 156,
         }}
       />
     </div>

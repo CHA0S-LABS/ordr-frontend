@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import type { IChartingLibraryWidget, ChartingLibraryWidgetOptions, ResolutionString } from "charting_library";
 import { datafeed } from "@/lib/datafeed";
-
-type ChartView = 'chart' | 'depth';
 
 declare global {
   interface Window {
@@ -71,103 +69,22 @@ function injectBg(container: HTMLElement, bg: string) {
     el.id = 'ordr-bg';
     doc.head.appendChild(el);
   }
-  el.textContent = `body,.chart-controls-bar,#footer-chart-panel,[class*="drawingToolbar"],[class*="wrap-"],[class*="inner-"]{background-color:${bg} !important}`;
+  el.textContent = `body,.chart-controls-bar,#footer-chart-panel,[class*="drawingToolbar"],[class*="inner-"]{background-color:${bg} !important}`;
 }
 
-function injectFooterToggle(
-  container: HTMLElement,
-  view: ChartView,
-  dark: boolean,
-  onChange: (v: ChartView) => void,
-  chartBtnRef: React.MutableRefObject<HTMLElement | null>,
-  depthBtnRef: React.MutableRefObject<HTMLElement | null>,
-) {
-  const iframe = container.querySelector('iframe') as HTMLIFrameElement | null;
-  if (!iframe?.contentDocument) return;
-  const doc = iframe.contentDocument;
-  const footer = doc.getElementById('footer-chart-panel');
-  if (!footer) return;
-
-  if (doc.getElementById('ordr-view-toggle')) return;
-
-  const wrap = doc.createElement('div');
-  wrap.id = 'ordr-view-toggle';
-  wrap.style.cssText = 'display:inline-flex;align-items:center;height:100%;padding:0 6px 0 2px;gap:1px;';
-
-  const makeBtn = (v: ChartView, label: string) => {
-    const btn = doc.createElement('button');
-    btn.textContent = label;
-    const active = view === v;
-    btn.style.cssText = [
-      'padding:1px 8px',
-      'border-radius:3px',
-      'font-size:12px',
-      'cursor:pointer',
-      'border:none',
-      'outline:none',
-      'font-family:inherit',
-      `background:${active ? (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)') : 'transparent'}`,
-      `color:${active ? (dark ? '#e8e4dc' : '#1a1916') : (dark ? '#8a9490' : '#8a8580')}`,
-      `font-weight:${active ? '600' : '400'}`,
-      'transition:all 0.15s ease',
-    ].join(';');
-    btn.addEventListener('click', () => onChange(v));
-    if (v === 'chart') chartBtnRef.current = btn;
-    else depthBtnRef.current = btn;
-    return btn;
-  };
-
-  wrap.appendChild(makeBtn('chart', 'Chart'));
-  wrap.appendChild(makeBtn('depth', 'Depth'));
-  footer.insertBefore(wrap, footer.firstChild);
-}
-
-export default function Chart({
-  symbol,
-  chartView = 'chart',
-  onViewChange,
-}: {
-  symbol: string;
-  chartView?: ChartView;
-  onViewChange?: (v: ChartView) => void;
-}) {
+export default function Chart({ symbol }: { symbol: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<IChartingLibraryWidget | null>(null);
   const { resolvedTheme } = useTheme();
-  const chartBtnRef = useRef<HTMLElement | null>(null);
-  const depthBtnRef = useRef<HTMLElement | null>(null);
-  const onViewChangeRef = useRef(onViewChange);
-  const chartViewRef = useRef(chartView);
-
-  useEffect(() => { onViewChangeRef.current = onViewChange; }, [onViewChange]);
-
-  const syncBtnStyles = useCallback((view: ChartView, dark: boolean) => {
-    [
-      { el: chartBtnRef.current, active: view === 'chart' },
-      { el: depthBtnRef.current, active: view === 'depth' },
-    ].forEach(({ el, active }) => {
-      if (!el) return;
-      el.style.background = active
-        ? (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)')
-        : 'transparent';
-      el.style.color = active
-        ? (dark ? '#e8e4dc' : '#1a1916')
-        : (dark ? '#8a9490' : '#8a8580');
-      el.style.fontWeight = active ? '600' : '400';
-    });
-  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
     const dark = document.documentElement.classList.contains("dark");
     let cancelled = false;
-    chartBtnRef.current = null;
-    depthBtnRef.current = null;
 
     loadScript().then(() => {
       if (cancelled || !container) return;
-
       widgetRef.current?.remove();
 
       const w = new window.TradingView.widget({
@@ -200,21 +117,6 @@ export default function Chart({
         w.setCSSCustomProperty('--color-bg-primary', getBg(dark));
         w.setCSSCustomProperty('--tv-color-pane-background', getBg(dark));
         injectBg(container, getBg(dark));
-
-        if (onViewChangeRef.current) {
-          setTimeout(() => {
-            if (cancelled) return;
-            injectFooterToggle(
-              container,
-              chartViewRef.current,
-              dark,
-              v => onViewChangeRef.current?.(v),
-              chartBtnRef,
-              depthBtnRef,
-            );
-            syncBtnStyles(chartViewRef.current, dark);
-          }, 300);
-        }
       });
 
       widgetRef.current = w;
@@ -224,16 +126,9 @@ export default function Chart({
       cancelled = true;
       widgetRef.current?.remove();
       widgetRef.current = null;
-      chartBtnRef.current = null;
-      depthBtnRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, syncBtnStyles]);
-
-  useEffect(() => {
-    chartViewRef.current = chartView;
-    syncBtnStyles(chartView, resolvedTheme !== 'light');
-  }, [chartView, resolvedTheme, syncBtnStyles]);
+  }, [symbol]);
 
   useEffect(() => {
     if (!resolvedTheme || !widgetRef.current || !containerRef.current) return;
@@ -247,10 +142,9 @@ export default function Chart({
         widgetRef.current?.setCSSCustomProperty('--color-bg-primary', getBg(dark));
         widgetRef.current?.setCSSCustomProperty('--tv-color-pane-background', getBg(dark));
         injectBg(container, getBg(dark));
-        syncBtnStyles(chartViewRef.current, dark);
       })
       .catch(() => {});
-  }, [resolvedTheme, syncBtnStyles]);
+  }, [resolvedTheme]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
