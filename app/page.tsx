@@ -14,6 +14,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 const Chart = dynamic(() => import('./components/Chart'), { ssr: false });
+const DepthChart = dynamic(() => import('./components/DepthChart'), { ssr: false });
 
 const PAIR = { label: 'SOL-USD', symbol: 'BINANCE:SOLUSDT', binanceSymbol: 'SOLUSDT' };
 
@@ -22,6 +23,7 @@ const BOTTOM_H = 40;
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<BottomTab>('Balances');
+  const [chartView, setChartView] = useState<'chart' | 'depth'>('chart');
   const [mobileView, setMobileView] = useState<'order' | 'charts'>('order');
   const [menuOpen, setMenuOpen] = useState(false);
   const [layoutState, setLayoutState] = useState<1 | 2 | 3 | 4>(1);
@@ -203,18 +205,13 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="h-10 border-b border-border flex items-center px-4 bg-surface shrink-0">
-            <div className="flex space-x-4">
-              {['5m', '15m', '1H', '4H', '1D'].map((tf, i) => (
-                <span key={tf} className={`text-xs cursor-pointer transition-colors ${i === 0 ? 'text-foreground' : 'text-muted hover:text-foreground'}`}>
-                  {tf}
-                </span>
-              ))}
-            </div>
-          </div>
-
           <div className="flex-1 relative min-h-[300px] lg:min-h-0">
-            <Chart symbol={PAIR.symbol} />
+            <Chart symbol={PAIR.symbol} chartView={chartView} onViewChange={setChartView} />
+            {chartView === 'depth' && (
+              <div className="absolute left-0 right-0 top-0 z-10" style={{ bottom: 36 }}>
+                <DepthChart />
+              </div>
+            )}
           </div>
         </div>
 
